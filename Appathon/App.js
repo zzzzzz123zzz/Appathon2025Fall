@@ -1,33 +1,21 @@
-import { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
+import OnboardingScreen from "./screens/OnboardingScreen";
 import SignupScreen from "./screens/SignupScreen";
+import QuizScreen from "./screens/QuizScreen";
+import LoginScreen from "./screens/LoginScreen";
+
 import HistoryScreen from "./screens/HistoryScreen";
 import NoteScreen from "./screens/NoteScreen";
 import WeekInReviewScreen from "./screens/WeekInReviewScreen";
 
-// Placeholder for screens not implemented yet
-const Placeholder = ({ title }) => (
-  <View style={styles.placeholder}>
-    <Text style={styles.placeholderText}>{title}</Text>
-  </View>
-);
-
 export default function App() {
-  // stack navigation state
   const [screen, setScreen] = useState("onboarding");
-
-  // tab navigation state
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  const goNext = () => {
-    if (screen === "onboarding") setScreen("signup");
-    else if (screen === "signup") setScreen("quiz");
-    else if (screen === "quiz") setScreen("home");
-  };
-
-  // Home screen with tab navigation
+  // Home tab content
   if (screen === "home") {
     let content;
     if (activeTab === "dashboard") content = <HistoryScreen />;
@@ -37,7 +25,6 @@ export default function App() {
     return (
       <View style={styles.container}>
         <View style={styles.content}>{content}</View>
-
         <View style={styles.tabBar}>
           <TouchableOpacity style={styles.tab} onPress={() => setActiveTab("dashboard")}>
             <Ionicons name="time-outline" size={24} color={activeTab === "dashboard" ? "#0f172a" : "#94a3b8"} />
@@ -56,13 +43,13 @@ export default function App() {
     );
   }
 
-  // Stack navigation screens
+  // Stack navigation
   return (
     <View style={styles.container}>
-      {screen === "signup" ? <SignupScreen /> : <Placeholder title={screen === "onboarding" ? "Onboarding" : "Quiz"} />}
-      <TouchableOpacity style={styles.nextBtn} onPress={goNext}>
-        <Text style={styles.nextText}>Next →</Text>
-      </TouchableOpacity>
+      {screen === "onboarding" && <OnboardingScreen setScreen={setScreen} />}
+      {screen === "signup" && <SignupScreen setScreen={setScreen} />}
+      {screen === "quiz" && <QuizScreen setScreen={setScreen} />}
+      {screen === "login" && <LoginScreen setScreen={setScreen} />}
     </View>
   );
 }
@@ -70,12 +57,8 @@ export default function App() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1 },
-  placeholder: { flex: 1, justifyContent: "center", alignItems: "center" },
-  placeholderText: { fontSize: 24, color: "#0f172a" },
-  nextBtn: { backgroundColor: "#0f172a", padding: 10, borderRadius: 8, margin: 20, alignSelf: "center" },
-  nextText: { color: "white", fontSize: 18 },
-  tabBar: { flexDirection: "row", backgroundColor: "#ffffff", paddingVertical: 10 },
-  tab: { flex: 1, alignItems: "center" },
-  tabText: { fontSize: 12, color: "#94a3b8", marginTop: 4 },
-  activeTabText: { fontSize: 12, color: "#0f172a", marginTop: 4 },
+  tabBar: { flexDirection: "row", height: 70, borderTopWidth: 1, borderTopColor: "#e2e8f0", justifyContent: "space-around", alignItems: "center" },
+  tab: { justifyContent: "center", alignItems: "center" },
+  tabText: { fontSize: 12, color: "#94a3b8" },
+  activeTabText: { fontSize: 12, color: "#0f172a", fontWeight: "700" },
 });
