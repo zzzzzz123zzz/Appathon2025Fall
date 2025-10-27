@@ -1,30 +1,30 @@
-import { StatusBar } from "expo-status-bar";
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  Linking,
-} from "react-native";
+import { View, TouchableOpacity, StyleSheet } from "react-native";
+import { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import HistoryScreen from "./screens/HistoryScreen";
+import NoteScreen from "./screens/NoteScreen";
 
 export default function App() {
-  const handlePress = () => {
-    Linking.openURL(
-      "https://open.spotify.com/user/27pvuzsj2e0tnjn0a5bbz0us4?si=4bb091fe602f417e"
-    );
-  };
+  const [activeTab, setActiveTab] = useState(1);
 
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" />
-
       <View style={styles.content}>
-        <Text style={styles.title}>Kuldeep was here</Text>
+        {activeTab === 1 ? <HistoryScreen /> : <NoteScreen />}
+      </View>
 
-        <Text style={styles.description}>have a good weekend!</Text>
-
-        <TouchableOpacity style={styles.link} onPress={handlePress}>
-          <Text style={styles.linkText}>Learn more →</Text>
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={styles.tab}
+          onPress={() => setActiveTab(1)}
+        >
+          <Ionicons name="time-outline" size={24} color="#0f172a" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tab}
+          onPress={() => setActiveTab(2)}
+        >
+          <Ionicons name="create-outline" size={24} color="#0f172a" />
         </TouchableOpacity>
       </View>
     </View>
@@ -34,33 +34,19 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 24,
-    paddingTop: 80,
   },
   content: {
-    alignItems: "flex-start",
+    flex: 1,
   },
-  title: {
-    fontSize: 40,
-    fontWeight: "600",
-    color: "#0f172a",
-    marginBottom: 16,
-    fontFamily: "System",
+  tabBar: {
+    flexDirection: "row",
+    paddingBottom: 20,
+    backgroundColor: "#ffffff",
   },
-  description: {
-    fontSize: 16,
-    color: "#64748b",
-    lineHeight: 24,
-    marginBottom: 32,
-    fontFamily: "System",
-  },
-  link: {
-    paddingVertical: 8,
-  },
-  linkText: {
-    fontSize: 15,
-    color: "#475569",
-    fontFamily: "System",
+  tab: {
+    flex: 1,
+    padding: 20,
+    alignItems: "center",
+    backgroundColor: "#ffffff",
   },
 });
