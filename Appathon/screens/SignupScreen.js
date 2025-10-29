@@ -1,10 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 export default function SignupScreen() {
+  const { theme } = useTheme();
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Signup Screen</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.text, { color: theme.primary }]}>Signup Screen</Text>
     </View>
   );
 }
@@ -14,10 +17,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
   text: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
   },
 }); 
