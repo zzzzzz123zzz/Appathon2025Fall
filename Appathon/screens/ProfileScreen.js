@@ -42,28 +42,27 @@ export default function ProfileScreen({ onBack }) {
       <ScrollView style={styles.content}>
         {/* Profile Picture Section */}
         <View style={styles.profileSection}>
-          <View
-            style={[
-              styles.profilePictureContainer,
-              { backgroundColor: theme.primary },
-            ]}
-          >
-            <Ionicons name="person" size={60} color="#FFFFFF" />
-          </View>
+          <View style={styles.profilePictureWrapper}>
+            <View
+              style={[
+                styles.profilePictureContainer,
+                { backgroundColor: theme.primary },
+              ]}
+            >
+              <Ionicons name="person" size={60} color="#FFFFFF" />
+            </View>
 
-          <TouchableOpacity
-            style={[
-              styles.changePhotoButton,
-              { backgroundColor: theme.cardBackground },
-            ]}
-            onPress={handleChangeProfilePicture}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="camera" size={20} color={theme.primary} />
-            <Text style={[styles.changePhotoText, { color: theme.primary }]}>
-              Change Profile Picture
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.editIconButton,
+                { backgroundColor: theme.primary },
+              ]}
+              onPress={handleChangeProfilePicture}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="camera" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Profile Info Section */}
@@ -237,25 +236,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 32,
   },
+  profilePictureWrapper: {
+    position: "relative",
+    marginBottom: 20,
+  },
   profilePictureContainer: {
     width: 120,
     height: 120,
     borderRadius: 60,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
   },
-  changePhotoButton: {
-    flexDirection: "row",
+  editIconButton: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    gap: 8,
-  },
-  changePhotoText: {
-    fontSize: 16,
-    fontWeight: "600",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
   },
   section: {
     paddingHorizontal: 24,

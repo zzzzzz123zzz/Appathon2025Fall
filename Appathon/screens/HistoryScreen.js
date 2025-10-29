@@ -230,9 +230,9 @@ const styles = StyleSheet.create({
   },
   micButtonContainer: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-end",
     alignItems: "center",
-    paddingBottom: 40,
+    paddingBottom: 60,
   },
   micButton: {
     width: 100,
