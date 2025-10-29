@@ -23,8 +23,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   description: {
-    fontSize: 16,
+    fontSize: 18,
     color: "#64748b",
-    lineHeight: 24,
+    lineHeight: 28,
   },
 });

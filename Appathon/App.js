@@ -47,7 +47,7 @@ export default function App() {
               >
                 <Ionicons
                   name="time-outline"
-                  size={24}
+                  size={28}
                   color={activeTab === "dashboard" ? "#0f172a" : "#94a3b8"}
                 />
                 <Text
@@ -66,7 +66,7 @@ export default function App() {
               >
                 <Ionicons
                   name="create-outline"
-                  size={24}
+                  size={28}
                   color={activeTab === "journal" ? "#0f172a" : "#94a3b8"}
                 />
                 <Text
@@ -113,15 +113,15 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1 },
   placeholder: { flex: 1, justifyContent: "center", alignItems: "center" },
-  placeholderText: { fontSize: 24, color: "#0f172a" },
+  placeholderText: { fontSize: 32, color: "#0f172a", fontWeight: "600" },
   nextBtn: {
     backgroundColor: "#0f172a",
-    padding: 10,
+    padding: 14,
     borderRadius: 8,
     margin: 20,
     alignSelf: "center",
   },
-  nextText: { color: "white", fontSize: 18 },
+  nextText: { color: "white", fontSize: 20, fontWeight: "600" },
   tabBarContainer: {
     backgroundColor: "#ffffff",
     borderTopWidth: 1,
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 16,
   },
-  tab: { flex: 1, alignItems: "center" },
-  tabText: { fontSize: 12, color: "#94a3b8", marginTop: 4 },
-  activeTabText: { fontSize: 12, color: "#0f172a", marginTop: 4, fontWeight: "600" },
+  tab: { flex: 1, alignItems: "center", paddingVertical: 4 },
+  tabText: { fontSize: 14, color: "#94a3b8", marginTop: 6 },
+  activeTabText: { fontSize: 14, color: "#0f172a", marginTop: 6, fontWeight: "600" },
 });
