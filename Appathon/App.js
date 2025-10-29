@@ -18,6 +18,8 @@ import WeekInReviewScreen from "./screens/WeekInReviewScreen";
 import LoadingScreen from "./screens/LoadingScreen";
 import SummaryScreen from "./screens/SummaryScreen";
 import SuccessScreen from "./screens/SuccessScreen";
+import OnboardingScreen from "./screens/OnboardingScreen";
+import QuizScreen from "./screens/QuizScreen";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 
 function MainApp() {
@@ -103,15 +105,6 @@ function MainApp() {
     console.log("Note saved:", noteText);
     navigateWithAnimation("success");
   };
-
-  // Placeholder for screens not implemented yet
-  const Placeholder = ({ title }) => (
-    <View style={[styles.placeholder, { backgroundColor: theme.background }]}>
-      <Text style={[styles.placeholderText, { color: theme.text }]}>
-        {title}
-      </Text>
-    </View>
-  );
 
   // Loading screen
   if (screen === "loading") {
@@ -246,13 +239,9 @@ function MainApp() {
           <View
             style={[styles.container, { backgroundColor: theme.background }]}
           >
-            {screen === "signup" ? (
-              <SignupScreen />
-            ) : (
-              <Placeholder
-                title={screen === "onboarding" ? "Onboarding" : "Quiz"}
-              />
-            )}
+            {screen === "signup" && <SignupScreen />}
+            {screen === "onboarding" && <OnboardingScreen />}
+            {screen === "quiz" && <QuizScreen />}
             <TouchableOpacity
               style={[styles.nextBtn, { backgroundColor: theme.primary }]}
               onPress={goNext}
@@ -286,15 +275,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-  },
-  placeholder: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  placeholderText: {
-    fontSize: 32,
-    fontWeight: "600",
   },
   nextBtn: {
     padding: 14,

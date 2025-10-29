@@ -11,7 +11,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import SettingsDrawer from "../components/SettingsDrawer";
 
-export default function HistoryScreen({ onCreateNote, onViewSummary, onStartChat, onEditProfile }) {
+export default function HistoryScreen({
+  onCreateNote,
+  onViewSummary,
+  onStartChat,
+  onEditProfile,
+}) {
   const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsVisible, setSettingsVisible] = useState(false);
@@ -60,10 +65,7 @@ export default function HistoryScreen({ onCreateNote, onViewSummary, onStartChat
           style={styles.profilePictureButton}
         >
           <View
-            style={[
-              styles.profilePicture,
-              { backgroundColor: theme.primary },
-            ]}
+            style={[styles.profilePicture, { backgroundColor: theme.primary }]}
           >
             <Ionicons name="person" size={24} color="#FFFFFF" />
           </View>
@@ -240,12 +242,12 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: "#fff",
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.3,
+    shadowOpacity: 1,
     shadowRadius: 12,
     elevation: 8,
   },
