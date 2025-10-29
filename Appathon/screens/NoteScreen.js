@@ -2,6 +2,13 @@ import { StyleSheet, TextInput, View, TouchableOpacity, Keyboard, KeyboardAvoidi
 import { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 
+const colors = {
+  caramelBrown: "#c1a57d",
+  accentGrey: "#f4f4f4",
+  white: "#ffffff",
+  textGrey: "#444444",
+};
+
 const prompts = [
   "How was your day?",
   "What's on your mind?",
@@ -85,7 +92,7 @@ export default function NoteScreen() {
           style={styles.dismissButton}
           onPress={() => Keyboard.dismiss()}
         >
-          <Ionicons name="chevron-down-circle" size={44} color="#0f172a" />
+          <Ionicons name="chevron-down-circle" size={44} color={colors.caramelBrown} />
         </TouchableOpacity>
       )}
     </KeyboardAvoidingView>
@@ -95,7 +102,7 @@ export default function NoteScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
   },
   scrollView: {
     flex: 1,
@@ -109,6 +116,7 @@ const styles = StyleSheet.create({
     padding: 24,
     fontSize: 18,
     lineHeight: 28,
+    color: colors.textGrey,
   },
   dismissButton: {
     position: "absolute",
@@ -116,7 +124,7 @@ const styles = StyleSheet.create({
     bottom: 32,
     width: 56,
     height: 56,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.accentGrey,
     borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",

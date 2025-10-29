@@ -6,6 +6,15 @@ import SignupScreen from "./screens/SignupScreen";
 import HistoryScreen from "./screens/HistoryScreen";
 import NoteScreen from "./screens/NoteScreen";
 import WeekInReviewScreen from "./screens/WeekInReviewScreen";
+import LoadingScreen from "./screens/LoadingScreen";
+
+// Color scheme
+const colors = {
+  caramelBrown: "#c1a57d",
+  accentGrey: "#f4f4f4",
+  white: "#ffffff",
+  textGrey: "#444444",
+};
 
 // Placeholder for screens not implemented yet
 const Placeholder = ({ title }) => (
@@ -48,7 +57,8 @@ export default function App() {
                 <Ionicons
                   name="time-outline"
                   size={28}
-                  color={activeTab === "dashboard" ? "#0f172a" : "#94a3b8"}
+                  color={activeTab === "dashboard" ? colors.caramelBrown : colors.textGrey}
+                  style={{ opacity: activeTab === "dashboard" ? 1 : 0.5 }}
                 />
                 <Text
                   style={
@@ -67,7 +77,8 @@ export default function App() {
                 <Ionicons
                   name="create-outline"
                   size={28}
-                  color={activeTab === "journal" ? "#0f172a" : "#94a3b8"}
+                  color={activeTab === "journal" ? colors.caramelBrown : colors.textGrey}
+                  style={{ opacity: activeTab === "journal" ? 1 : 0.5 }}
                 />
                 <Text
                   style={
@@ -108,33 +119,66 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
   },
-  container: { flex: 1 },
-  content: { flex: 1 },
-  placeholder: { flex: 1, justifyContent: "center", alignItems: "center" },
-  placeholderText: { fontSize: 32, color: "#0f172a", fontWeight: "600" },
+  container: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+  content: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+  placeholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.white,
+  },
+  placeholderText: {
+    fontSize: 32,
+    color: colors.textGrey,
+    fontWeight: "600",
+  },
   nextBtn: {
-    backgroundColor: "#0f172a",
+    backgroundColor: colors.caramelBrown,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 12,
     margin: 20,
     alignSelf: "center",
   },
-  nextText: { color: "white", fontSize: 20, fontWeight: "600" },
+  nextText: {
+    color: colors.white,
+    fontSize: 20,
+    fontWeight: "600",
+  },
   tabBarContainer: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     borderTopWidth: 1,
-    borderTopColor: "#e2e8f0",
+    borderTopColor: colors.accentGrey,
     paddingBottom: Platform.OS === "ios" ? 20 : 12,
   },
   tabBar: {
     flexDirection: "row",
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     paddingTop: 12,
     paddingHorizontal: 16,
   },
-  tab: { flex: 1, alignItems: "center", paddingVertical: 4 },
-  tabText: { fontSize: 14, color: "#94a3b8", marginTop: 6 },
-  activeTabText: { fontSize: 14, color: "#0f172a", marginTop: 6, fontWeight: "600" },
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  tabText: {
+    fontSize: 14,
+    color: colors.textGrey,
+    marginTop: 6,
+    opacity: 0.5,
+  },
+  activeTabText: {
+    fontSize: 14,
+    color: colors.caramelBrown,
+    marginTop: 6,
+    fontWeight: "600",
+  },
 });
