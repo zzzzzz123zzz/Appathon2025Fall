@@ -4,20 +4,40 @@ import {
   View,
   TextInput,
   TouchableOpacity,
+  Animated,
 } from "react-native";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import SettingsDrawer from "../components/SettingsDrawer";
 
-export default function HistoryScreen({ onCreateNote, onViewSummary }) {
+export default function HistoryScreen({ onCreateNote, onViewSummary, onStartChat }) {
   const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const micButtonScale = useRef(new Animated.Value(1)).current;
 
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
+  const handleMicPress = () => {
+    Animated.sequence([
+      Animated.timing(micButtonScale, {
+        toValue: 0.9,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(micButtonScale, {
+        toValue: 1,
+        tension: 100,
+        friction: 3,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onStartChat();
+    });
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -98,6 +118,21 @@ export default function HistoryScreen({ onCreateNote, onViewSummary }) {
         Your journal entries will appear here
       </Text>
 
+      <View style={styles.micButtonContainer}>
+        <Animated.View style={{ transform: [{ scale: micButtonScale }] }}>
+          <TouchableOpacity
+            style={[styles.micButton, { backgroundColor: theme.primary }]}
+            onPress={handleMicPress}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="mic" size={48} color="#FFFFFF" />
+          </TouchableOpacity>
+        </Animated.View>
+        <Text style={[styles.micButtonLabel, { color: theme.textSecondary }]}>
+          Tap to start talking
+        </Text>
+      </View>
+
       <SettingsDrawer
         visible={settingsVisible}
         onClose={() => setSettingsVisible(false)}
@@ -172,5 +207,31 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 32,
     fontWeight: "700",
+  },
+  micButtonContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: 40,
+  },
+  micButton: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  micButtonLabel: {
+    fontSize: 18,
+    fontWeight: "500",
+    marginTop: 16,
   },
 });

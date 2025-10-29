@@ -114,6 +114,7 @@ export default function NoteScreen({ onBack, onFinish }) {
             },
           ]}
           onPress={handleGoDeeper}
+          activeOpacity={0.7}
         >
           <Ionicons name="bulb-outline" size={24} color={theme.primary} />
           <Text style={[styles.buttonText, { color: theme.primary }]}>
@@ -129,6 +130,7 @@ export default function NoteScreen({ onBack, onFinish }) {
           ]}
           onPress={handleFinishEntry}
           disabled={noteText.trim().length === 0}
+          activeOpacity={0.7}
         >
           <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
           <Text style={[styles.buttonText, { color: "#FFFFFF" }]}>
