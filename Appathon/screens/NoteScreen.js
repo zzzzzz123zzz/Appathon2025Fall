@@ -1,13 +1,7 @@
-import { StyleSheet, TextInput, View, TouchableOpacity, Keyboard, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { StyleSheet, TextInput, View, TouchableOpacity, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text } from "react-native";
 import { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
-
-const colors = {
-  caramelBrown: "#c1a57d",
-  accentGrey: "#f4f4f4",
-  white: "#ffffff",
-  textGrey: "#444444",
-};
+import { useTheme } from "../context/ThemeContext";
 
 const prompts = [
   "How was your day?",
@@ -18,12 +12,20 @@ const prompts = [
   "What are you grateful for?",
 ];
 
-export default function NoteScreen() {
+export default function NoteScreen({ onBack }) {
+  const { theme } = useTheme();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [placeholder, setPlaceholder] = useState("");
   const [promptIndex, setPromptIndex] = useState(0);
   const [charIndex, setCharIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Get current date
+  const getCurrentDate = () => {
+    const date = new Date();
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+  };
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
@@ -71,9 +73,17 @@ export default function NoteScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={28} color={theme.primary} />
+        </TouchableOpacity>
+        <Text style={[styles.dateText, { color: theme.text }]}>{getCurrentDate()}</Text>
+        <View style={styles.placeholder} />
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -81,18 +91,19 @@ export default function NoteScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: theme.text }]}
           placeholder={placeholder}
+          placeholderTextColor={theme.textSecondary}
           multiline={true}
           textAlignVertical="top"
         />
       </ScrollView>
       {keyboardVisible && (
         <TouchableOpacity
-          style={styles.dismissButton}
+          style={[styles.dismissButton, { backgroundColor: theme.cardBackground }]}
           onPress={() => Keyboard.dismiss()}
         >
-          <Ionicons name="chevron-down-circle" size={44} color={colors.caramelBrown} />
+          <Ionicons name="chevron-down-circle" size={44} color={theme.primary} />
         </TouchableOpacity>
       )}
     </KeyboardAvoidingView>
@@ -102,21 +113,39 @@ export default function NoteScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: 8,
+    width: 44,
+  },
+  dateText: {
+    fontSize: 16,
+    fontWeight: "600",
+    flex: 1,
+    textAlign: "center",
+  },
+  placeholder: {
+    width: 44,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: 60,
   },
   input: {
     minHeight: 500,
     padding: 24,
     fontSize: 18,
     lineHeight: 28,
-    color: colors.textGrey,
   },
   dismissButton: {
     position: "absolute",
@@ -124,7 +153,6 @@ const styles = StyleSheet.create({
     bottom: 32,
     width: 56,
     height: 56,
-    backgroundColor: colors.accentGrey,
     borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",

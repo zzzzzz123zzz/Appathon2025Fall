@@ -1,14 +1,17 @@
 import { StyleSheet, View, Image, ActivityIndicator } from "react-native";
+import { useTheme } from "../context/ThemeContext";
 
 export default function LoadingScreen() {
+  const { theme } = useTheme();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Image
         source={require("../assets/snowLeopard5.png")}
         style={styles.image}
         resizeMode="contain"
       />
-      <ActivityIndicator size="large" color="#c1a57d" style={styles.loader} />
+      <ActivityIndicator size="large" color={theme.primary} style={styles.loader} />
     </View>
   );
 }
@@ -16,7 +19,6 @@ export default function LoadingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#c1a57d",
     justifyContent: "center",
     alignItems: "center",
   },
