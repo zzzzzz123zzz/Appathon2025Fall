@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Animated } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  Animated,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import SignupScreen from "./screens/SignupScreen";
@@ -17,12 +24,22 @@ function MainApp() {
   const { theme, isDarkMode } = useTheme();
 
   // stack navigation state
-  const [screen, setScreen] = useState("onboarding");
-  const [previousScreen, setPreviousScreen] = useState("onboarding");
+  const [screen, setScreen] = useState("loading");
+  const [previousScreen, setPreviousScreen] = useState("loading");
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+
+  // Auto-navigate from loading screen
+  useEffect(() => {
+    if (screen === "loading") {
+      const timer = setTimeout(() => {
+        navigateWithAnimation("onboarding");
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [screen]);
 
   // Animated navigation function
   const navigateWithAnimation = (targetScreen, animationType = "fade") => {
@@ -90,16 +107,35 @@ function MainApp() {
   // Placeholder for screens not implemented yet
   const Placeholder = ({ title }) => (
     <View style={[styles.placeholder, { backgroundColor: theme.background }]}>
-      <Text style={[styles.placeholderText, { color: theme.text }]}>{title}</Text>
+      <Text style={[styles.placeholderText, { color: theme.text }]}>
+        {title}
+      </Text>
     </View>
   );
+
+  // Loading screen
+  if (screen === "loading") {
+    return (
+      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
+        <SafeAreaView
+          style={[styles.safeArea, { backgroundColor: theme.background }]}
+        >
+          <LoadingScreen />
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   // Home screen (Dashboard)
   if (screen === "home") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
-          <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
+          <SafeAreaView
+            style={[styles.safeArea, { backgroundColor: theme.background }]}
+          >
             <HistoryScreen
               onCreateNote={navigateToNote}
               onViewSummary={navigateToSummary}
@@ -116,8 +152,12 @@ function MainApp() {
   if (screen === "createNote") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
-          <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
+          <SafeAreaView
+            style={[styles.safeArea, { backgroundColor: theme.background }]}
+          >
             <NoteScreen onBack={navigateToHome} onFinish={navigateToSuccess} />
           </SafeAreaView>
         </Animated.View>
@@ -136,7 +176,9 @@ function MainApp() {
           },
         ]}
       >
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <SafeAreaView
+          style={[styles.safeArea, { backgroundColor: theme.background }]}
+        >
           <ChatScreen onBack={navigateToHome} onFinish={navigateToSuccess} />
         </SafeAreaView>
       </Animated.View>
@@ -147,8 +189,12 @@ function MainApp() {
   if (screen === "profile") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
-          <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
+          <SafeAreaView
+            style={[styles.safeArea, { backgroundColor: theme.background }]}
+          >
             <ProfileScreen onBack={navigateToHome} />
           </SafeAreaView>
         </Animated.View>
@@ -160,8 +206,12 @@ function MainApp() {
   if (screen === "success") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
-          <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
+          <SafeAreaView
+            style={[styles.safeArea, { backgroundColor: theme.background }]}
+          >
             <SuccessScreen onComplete={navigateToHome} />
           </SafeAreaView>
         </Animated.View>
@@ -173,8 +223,12 @@ function MainApp() {
   if (screen === "summary") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
-          <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
+          <SafeAreaView
+            style={[styles.safeArea, { backgroundColor: theme.background }]}
+          >
             <SummaryScreen onBack={navigateToHome} />
           </SafeAreaView>
         </Animated.View>
@@ -186,14 +240,23 @@ function MainApp() {
   return (
     <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
       <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-          <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <SafeAreaView
+          style={[styles.safeArea, { backgroundColor: theme.background }]}
+        >
+          <View
+            style={[styles.container, { backgroundColor: theme.background }]}
+          >
             {screen === "signup" ? (
               <SignupScreen />
             ) : (
-              <Placeholder title={screen === "onboarding" ? "Onboarding" : "Quiz"} />
+              <Placeholder
+                title={screen === "onboarding" ? "Onboarding" : "Quiz"}
+              />
             )}
-            <TouchableOpacity style={[styles.nextBtn, { backgroundColor: theme.primary }]} onPress={goNext}>
+            <TouchableOpacity
+              style={[styles.nextBtn, { backgroundColor: theme.primary }]}
+              onPress={goNext}
+            >
               <Text style={styles.nextText}>Next →</Text>
             </TouchableOpacity>
           </View>
