@@ -13,7 +13,7 @@ import { useState, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 
-export default function SettingsDrawer({ visible, onClose }) {
+export default function SettingsDrawer({ visible, onClose, onEditProfile }) {
   const { theme, isDarkMode, themeMode, setThemeMode } = useTheme();
   const slideAnim = useRef(new Animated.Value(-320)).current;
   const [reminderFrequency, setReminderFrequency] = useState(2); // times per day
@@ -99,9 +99,15 @@ export default function SettingsDrawer({ visible, onClose }) {
                 </View>
                 <View style={styles.profileInfo}>
                   <Text style={[styles.profileName, { color: theme.text }]}>
-                    User Name
+                    Theodore
                   </Text>
-                  <TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (onEditProfile) {
+                        onEditProfile();
+                      }
+                    }}
+                  >
                     <Text
                       style={[styles.editProfile, { color: theme.primary }]}
                     >

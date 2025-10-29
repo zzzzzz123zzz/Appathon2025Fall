@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import SettingsDrawer from "../components/SettingsDrawer";
 
-export default function HistoryScreen({ onCreateNote, onViewSummary, onStartChat }) {
+export default function HistoryScreen({ onCreateNote, onViewSummary, onStartChat, onEditProfile }) {
   const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsVisible, setSettingsVisible] = useState(false);
@@ -57,9 +57,16 @@ export default function HistoryScreen({ onCreateNote, onViewSummary, onStartChat
 
         <TouchableOpacity
           onPress={() => setSettingsVisible(true)}
-          style={styles.settingsButton}
+          style={styles.profilePictureButton}
         >
-          <Ionicons name="settings-outline" size={28} color={theme.primary} />
+          <View
+            style={[
+              styles.profilePicture,
+              { backgroundColor: theme.primary },
+            ]}
+          >
+            <Ionicons name="person" size={24} color="#FFFFFF" />
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -136,6 +143,12 @@ export default function HistoryScreen({ onCreateNote, onViewSummary, onStartChat
       <SettingsDrawer
         visible={settingsVisible}
         onClose={() => setSettingsVisible(false)}
+        onEditProfile={() => {
+          setSettingsVisible(false);
+          if (onEditProfile) {
+            onEditProfile();
+          }
+        }}
       />
     </View>
   );
@@ -153,8 +166,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 32,
   },
-  settingsButton: {
-    padding: 8,
+  profilePictureButton: {
+    padding: 4,
+  },
+  profilePicture: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
   },
   searchContainer: {
     flexDirection: "row",

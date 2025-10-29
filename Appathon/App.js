@@ -6,6 +6,7 @@ import SignupScreen from "./screens/SignupScreen";
 import HistoryScreen from "./screens/HistoryScreen";
 import NoteScreen from "./screens/NoteScreen";
 import ChatScreen from "./screens/ChatScreen";
+import ProfileScreen from "./screens/ProfileScreen";
 import WeekInReviewScreen from "./screens/WeekInReviewScreen";
 import LoadingScreen from "./screens/LoadingScreen";
 import SummaryScreen from "./screens/SummaryScreen";
@@ -68,6 +69,10 @@ function MainApp() {
     navigateWithAnimation("chat", "modal");
   };
 
+  const navigateToProfile = () => {
+    navigateWithAnimation("profile");
+  };
+
   const navigateToSummary = () => {
     navigateWithAnimation("summary");
   };
@@ -99,6 +104,7 @@ function MainApp() {
               onCreateNote={navigateToNote}
               onViewSummary={navigateToSummary}
               onStartChat={navigateToChat}
+              onEditProfile={navigateToProfile}
             />
           </SafeAreaView>
         </Animated.View>
@@ -134,6 +140,19 @@ function MainApp() {
           <ChatScreen onBack={navigateToHome} onFinish={navigateToSuccess} />
         </SafeAreaView>
       </Animated.View>
+    );
+  }
+
+  // Profile screen
+  if (screen === "profile") {
+    return (
+      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
+        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+          <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+            <ProfileScreen onBack={navigateToHome} />
+          </SafeAreaView>
+        </Animated.View>
+      </View>
     );
   }
 
