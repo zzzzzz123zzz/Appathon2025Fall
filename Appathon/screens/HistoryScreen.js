@@ -57,7 +57,6 @@ export default function HistoryScreen({ onCreateNote, onViewSummary }) {
         />
         <TextInput
           style={[styles.searchInput, { color: theme.text }]}
-          placeholder="Search your notes..."
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholderTextColor={theme.textSecondary}

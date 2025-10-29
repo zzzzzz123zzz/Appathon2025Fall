@@ -1,39 +1,42 @@
-import { StyleSheet, TextInput, View, TouchableOpacity, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text } from "react-native";
+import {
+  StyleSheet,
+  TextInput,
+  View,
+  TouchableOpacity,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+} from "react-native";
 import { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 
-const prompts = [
-  "How was your day?",
-  "What's on your mind?",
-  "How are you feeling?",
-  "What made you smile today?",
-  "What's weighing on you?",
-  "What are you grateful for?",
-];
-
-export default function NoteScreen({ onBack }) {
+export default function NoteScreen({ onBack, onFinish }) {
   const { theme } = useTheme();
+  const [noteText, setNoteText] = useState("");
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const [placeholder, setPlaceholder] = useState("");
-  const [promptIndex, setPromptIndex] = useState(0);
-  const [charIndex, setCharIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Get current date
   const getCurrentDate = () => {
     const date = new Date();
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    return date.toLocaleDateString('en-US', options);
+    const options = {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    };
+    return date.toLocaleDateString("en-US", options);
   };
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardDidShow',
+      "keyboardDidShow",
       () => setKeyboardVisible(true)
     );
     const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardDidHide',
+      "keyboardDidHide",
       () => setKeyboardVisible(false)
     );
 
@@ -43,44 +46,37 @@ export default function NoteScreen({ onBack }) {
     };
   }, []);
 
-  useEffect(() => {
-    const currentPrompt = prompts[promptIndex];
+  const handleGoDeeper = () => {
+    // Add prompts to help user go deeper
+    const deeperPrompts = [
+      "\n\nTell me more about that...",
+      "\n\nHow did that make you feel?",
+      "\n\nWhat else comes to mind?",
+    ];
+    const randomPrompt =
+      deeperPrompts[Math.floor(Math.random() * deeperPrompts.length)];
+    setNoteText(noteText + randomPrompt);
+  };
 
-    const typingSpeed = isDeleting ? 30 : 80;
-    const pauseTime = isDeleting ? 500 : 2000;
-
-    const timeout = setTimeout(() => {
-      if (!isDeleting && charIndex < currentPrompt.length) {
-        // Typing
-        setPlaceholder(currentPrompt.substring(0, charIndex + 1));
-        setCharIndex(charIndex + 1);
-      } else if (!isDeleting && charIndex === currentPrompt.length) {
-        // Pause before deleting
-        setTimeout(() => setIsDeleting(true), pauseTime);
-      } else if (isDeleting && charIndex > 0) {
-        // Deleting
-        setPlaceholder(currentPrompt.substring(0, charIndex - 1));
-        setCharIndex(charIndex - 1);
-      } else if (isDeleting && charIndex === 0) {
-        // Move to next prompt
-        setIsDeleting(false);
-        setPromptIndex((promptIndex + 1) % prompts.length);
-      }
-    }, typingSpeed);
-
-    return () => clearTimeout(timeout);
-  }, [charIndex, isDeleting, promptIndex]);
+  const handleFinishEntry = () => {
+    if (onFinish) {
+      onFinish(noteText);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color={theme.primary} />
+          <Ionicons name="arrow-back" size={32} color={theme.primary} />
         </TouchableOpacity>
-        <Text style={[styles.dateText, { color: theme.text }]}>{getCurrentDate()}</Text>
+        <Text style={[styles.dateText, { color: theme.text }]}>
+          {getCurrentDate()}
+        </Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -92,20 +88,54 @@ export default function NoteScreen({ onBack }) {
       >
         <TextInput
           style={[styles.input, { color: theme.text }]}
-          placeholder={placeholder}
+          placeholder="Write your thoughts here..."
           placeholderTextColor={theme.textSecondary}
           multiline={true}
           textAlignVertical="top"
+          value={noteText}
+          onChangeText={setNoteText}
+          autoFocus={true}
         />
       </ScrollView>
-      {keyboardVisible && (
+
+      <View
+        style={[
+          styles.buttonContainer,
+          { backgroundColor: theme.background, borderTopColor: theme.border },
+        ]}
+      >
         <TouchableOpacity
-          style={[styles.dismissButton, { backgroundColor: theme.cardBackground }]}
-          onPress={() => Keyboard.dismiss()}
+          style={[
+            styles.button,
+            styles.goDeeperButton,
+            {
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.primary,
+            },
+          ]}
+          onPress={handleGoDeeper}
         >
-          <Ionicons name="chevron-down-circle" size={44} color={theme.primary} />
+          <Ionicons name="bulb-outline" size={24} color={theme.primary} />
+          <Text style={[styles.buttonText, { color: theme.primary }]}>
+            Go Deeper
+          </Text>
         </TouchableOpacity>
-      )}
+
+        <TouchableOpacity
+          style={[
+            styles.button,
+            styles.finishButton,
+            { backgroundColor: theme.primary },
+          ]}
+          onPress={handleFinishEntry}
+          disabled={noteText.trim().length === 0}
+        >
+          <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+          <Text style={[styles.buttonText, { color: "#FFFFFF" }]}>
+            Finish Entry
+          </Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -124,16 +154,16 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-    width: 44,
+    width: 48,
   },
   dateText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
     flex: 1,
     textAlign: "center",
   },
   placeholder: {
-    width: 44,
+    width: 48,
   },
   scrollView: {
     flex: 1,
@@ -142,27 +172,43 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   input: {
-    minHeight: 500,
+    minHeight: 400,
     padding: 24,
-    fontSize: 18,
-    lineHeight: 28,
+    fontSize: 20,
+    lineHeight: 32,
   },
-  dismissButton: {
-    position: "absolute",
-    right: 24,
-    bottom: 32,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
+  buttonContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12,
+    borderTopWidth: 1,
+  },
+  button: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    gap: 8,
+  },
+  goDeeperButton: {
+    borderWidth: 2,
+  },
+  finishButton: {
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
+  },
+  buttonText: {
+    fontSize: 18,
+    fontWeight: "600",
   },
 });

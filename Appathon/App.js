@@ -8,6 +8,7 @@ import NoteScreen from "./screens/NoteScreen";
 import WeekInReviewScreen from "./screens/WeekInReviewScreen";
 import LoadingScreen from "./screens/LoadingScreen";
 import SummaryScreen from "./screens/SummaryScreen";
+import SuccessScreen from "./screens/SuccessScreen";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 
 function MainApp() {
@@ -34,6 +35,12 @@ function MainApp() {
     setScreen("home");
   };
 
+  const navigateToSuccess = (noteText) => {
+    // TODO: Save noteText to storage or backend here
+    console.log("Note saved:", noteText);
+    setScreen("success");
+  };
+
   // Placeholder for screens not implemented yet
   const Placeholder = ({ title }) => (
     <View style={[styles.placeholder, { backgroundColor: theme.background }]}>
@@ -54,7 +61,16 @@ function MainApp() {
   if (screen === "createNote") {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-        <NoteScreen onBack={navigateToHome} />
+        <NoteScreen onBack={navigateToHome} onFinish={navigateToSuccess} />
+      </SafeAreaView>
+    );
+  }
+
+  // Success screen
+  if (screen === "success") {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <SuccessScreen onComplete={navigateToHome} />
       </SafeAreaView>
     );
   }
