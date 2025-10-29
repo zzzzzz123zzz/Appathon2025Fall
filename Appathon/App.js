@@ -7,6 +7,7 @@ import HistoryScreen from "./screens/HistoryScreen";
 import NoteScreen from "./screens/NoteScreen";
 import WeekInReviewScreen from "./screens/WeekInReviewScreen";
 import LoadingScreen from "./screens/LoadingScreen";
+import SummaryScreen from "./screens/SummaryScreen";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 
 function MainApp() {
@@ -25,6 +26,10 @@ function MainApp() {
     setScreen("createNote");
   };
 
+  const navigateToSummary = () => {
+    setScreen("summary");
+  };
+
   const navigateToHome = () => {
     setScreen("home");
   };
@@ -40,7 +45,7 @@ function MainApp() {
   if (screen === "home") {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-        <HistoryScreen onCreateNote={navigateToNote} />
+        <HistoryScreen onCreateNote={navigateToNote} onViewSummary={navigateToSummary} />
       </SafeAreaView>
     );
   }
@@ -50,6 +55,15 @@ function MainApp() {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
         <NoteScreen onBack={navigateToHome} />
+      </SafeAreaView>
+    );
+  }
+
+  // Summary screen
+  if (screen === "summary") {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <SummaryScreen onBack={navigateToHome} />
       </SafeAreaView>
     );
   }

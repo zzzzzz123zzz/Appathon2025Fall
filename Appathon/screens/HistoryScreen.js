@@ -1,17 +1,54 @@
-import { StyleSheet, Text, View, TextInput, TouchableOpacity } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+} from "react-native";
 import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
+import SettingsDrawer from "../components/SettingsDrawer";
 
-export default function HistoryScreen({ onCreateNote }) {
+export default function HistoryScreen({ onCreateNote, onViewSummary }) {
   const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
+  const [settingsVisible, setSettingsVisible] = useState(false);
+
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.primary }]}>History</Text>
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={[styles.greeting, { color: theme.textSecondary }]}>
+            {greeting},
+          </Text>
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={[styles.username, { color: theme.primary }]}
+          >
+            Theodore 👋
+          </Text>
+        </View>
 
-      <View style={[styles.searchContainer, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+        <TouchableOpacity
+          onPress={() => setSettingsVisible(true)}
+          style={styles.settingsButton}
+        >
+          <Ionicons name="settings-outline" size={28} color={theme.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <View
+        style={[
+          styles.searchContainer,
+          { backgroundColor: theme.cardBackground, borderColor: theme.border },
+        ]}
+      >
         <Ionicons
           name="search"
           size={20}
@@ -36,17 +73,36 @@ export default function HistoryScreen({ onCreateNote }) {
         )}
       </View>
 
-      <TouchableOpacity
-        style={[styles.createButton, { backgroundColor: theme.primary }]}
-        onPress={onCreateNote}
-      >
-        <Ionicons name="add-circle-outline" size={24} color="#ffffff" />
-        <Text style={styles.createButtonText}>Create Note</Text>
-      </TouchableOpacity>
+      <View style={styles.buttonRow}>
+        <TouchableOpacity
+          style={[styles.secondaryButton, { borderColor: theme.primary }]}
+          onPress={onCreateNote}
+        >
+          <Ionicons name="add-circle-outline" size={22} color={theme.primary} />
+          <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>
+            Create Note
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.secondaryButton, { borderColor: theme.primary }]}
+          onPress={onViewSummary}
+        >
+          <Ionicons name="bar-chart-outline" size={22} color={theme.primary} />
+          <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>
+            Summary
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <Text style={[styles.description, { color: theme.text }]}>
         Your journal entries will appear here
       </Text>
+
+      <SettingsDrawer
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+      />
     </View>
   );
 }
@@ -57,10 +113,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 80,
   },
-  title: {
-    fontSize: 40,
-    fontWeight: "600",
-    marginBottom: 20,
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 32,
+  },
+  settingsButton: {
+    padding: 8,
   },
   searchContainer: {
     flexDirection: "row",
@@ -81,24 +141,37 @@ const styles = StyleSheet.create({
   clearIcon: {
     marginLeft: 8,
   },
-  createButton: {
+  buttonRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+  },
+  secondaryButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 12,
-    marginBottom: 24,
+    borderWidth: 2,
   },
-  createButtonText: {
-    color: "#ffffff",
-    fontSize: 18,
+  secondaryButtonText: {
+    fontSize: 16,
     fontWeight: "600",
-    marginLeft: 8,
+    marginLeft: 6,
   },
   description: {
     fontSize: 18,
     lineHeight: 28,
     opacity: 0.7,
+  },
+  greeting: {
+    fontSize: 22,
+    fontWeight: "400",
+  },
+  username: {
+    fontSize: 32,
+    fontWeight: "700",
   },
 });
