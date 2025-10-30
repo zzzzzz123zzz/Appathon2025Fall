@@ -24,10 +24,17 @@ export default function ChatScreen({ onBack, onFinish }) {
       timestamp: new Date(),
     },
   ]);
-  const [isRecording, setIsRecording] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef(null);
-  
+
+  // Speech recognition hook
+  const {
+    isRecording,
+    isTranscribing,
+    startRecording,
+    recordAndTranscribe,
+  } = useSpeechRecognition();
+
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const micButtonScale = useRef(new Animated.Value(1)).current;
@@ -80,54 +87,88 @@ export default function ChatScreen({ onBack, onFinish }) {
     }, 100);
   }, [messages.length]);
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    
-    // Haptic feedback
-    Animated.sequence([
-      Animated.timing(micButtonScale, {
-        toValue: 0.9,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(micButtonScale, {
-        toValue: 1,
-        tension: 300,
-        friction: 10,
-        useNativeDriver: true,
-      }),
-    ]).start();
+  const handleStartRecording = async () => {
+    try {
+      // Start actual audio recording
+      await startRecording();
+
+      // Haptic feedback animation
+      Animated.sequence([
+        Animated.timing(micButtonScale, {
+          toValue: 0.9,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(micButtonScale, {
+          toValue: 1,
+          tension: 300,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } catch (error) {
+      console.error("Error starting recording:", error);
+      Alert.alert(
+        "Recording Error",
+        "Could not start recording. Please check microphone permissions.",
+        [{ text: "OK" }]
+      );
+    }
   };
 
-  const handleStopRecording = () => {
-    setIsRecording(false);
-    
-    // Add user message with animation
-    const newMessage = {
-      id: messages.length + 1,
-      text: "I've been feeling a bit overwhelmed lately with work and personal life. Sometimes it feels like I'm not doing enough, even when I'm trying my best.",
-      sender: "user",
-      timestamp: new Date(),
-    };
-    
-    setMessages([...messages, newMessage]);
+  const handleStopRecording = async () => {
+    try {
+      // Stop recording and get transcription
+      const transcription = await recordAndTranscribe();
 
-    // Show typing indicator after a delay
-    setTimeout(() => {
-      setIsTyping(true);
-    }, 800);
+      if (transcription) {
+        // Add user message with actual transcription
+        const newMessage = {
+          id: messages.length + 1,
+          text: transcription,
+          sender: "user",
+          timestamp: new Date(),
+        };
 
-    // Simulate AI response
-    setTimeout(() => {
-      setIsTyping(false);
-      const aiResponse = {
-        id: messages.length + 2,
-        text: "I hear you. Feeling overwhelmed is really tough, especially when you're giving it your all. Can you tell me more about what's been weighing on you most?",
-        sender: "ai",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiResponse]);
-    }, 2500);
+        setMessages((prev) => [...prev, newMessage]);
+
+        // Show typing indicator after a delay
+        setTimeout(() => {
+          setIsTyping(true);
+        }, 800);
+
+        // Simulate AI response (replace with actual AI call later)
+        setTimeout(() => {
+          setIsTyping(false);
+
+          const aiResponses = [
+            "I hear you. Can you tell me more about what's been weighing on you most?",
+            "Thank you for sharing that. How does that make you feel?",
+            "That sounds challenging. What do you think would help you feel better?",
+            "I understand. Have you noticed any patterns in when these feelings come up?",
+            "That's important to acknowledge. What support do you have right now?",
+          ];
+
+          const randomResponse =
+            aiResponses[Math.floor(Math.random() * aiResponses.length)];
+
+          const aiResponse = {
+            id: messages.length + 2,
+            text: randomResponse,
+            sender: "ai",
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, aiResponse]);
+        }, 2500);
+      }
+    } catch (error) {
+      console.error("Error stopping recording:", error);
+      Alert.alert(
+        "Transcription Error",
+        "Could not process your message. Please try again.",
+        [{ text: "OK" }]
+      );
+    }
   };
 
   const handleFinishSession = () => {
@@ -270,11 +311,13 @@ export default function ChatScreen({ onBack, onFinish }) {
               {
                 backgroundColor: isRecording ? "#EF4444" : theme.primary,
                 shadowColor: isRecording ? "#EF4444" : theme.primary,
+                opacity: isTranscribing ? 0.5 : 1,
               },
             ]}
             onPressIn={handleStartRecording}
             onPressOut={handleStopRecording}
             activeOpacity={0.9}
+            disabled={isTranscribing}
           >
             <Ionicons
               name={isRecording ? "stop" : "mic"}
@@ -285,7 +328,11 @@ export default function ChatScreen({ onBack, onFinish }) {
         </Animated.View>
 
         <Text style={[styles.micLabel, { color: theme.textSecondary }]}>
-          {isRecording ? "Release to send" : "Hold to speak"}
+          {isTranscribing
+            ? "Processing..."
+            : isRecording
+            ? "Release to send"
+            : "Hold to speak"}
         </Text>
 
         {messages.length > 2 && (

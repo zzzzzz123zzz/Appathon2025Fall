@@ -1,10 +1,42 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Animated, Keyboard } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
 export default function QuizScreen5({ onNext, onBack }) {
   const { theme } = useTheme();
   const [selectedOptions, setSelectedOptions] = useState([]);
+  const [customInput, setCustomInput] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const customInputAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Fade in and slide up animation on mount
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  useEffect(() => {
+    // Animate custom input field
+    Animated.timing(customInputAnim, {
+      toValue: showCustomInput ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [showCustomInput]);
 
   const options = [
     "Anxiety",
@@ -16,6 +48,7 @@ export default function QuizScreen5({ onNext, onBack }) {
     "Eating disorders",
     "Bipolar disorder",
     "Social anxiety",
+    "Something else",
     "None of these",
     "Prefer not to say"
   ];
@@ -24,10 +57,26 @@ export default function QuizScreen5({ onNext, onBack }) {
     // If "None of these" or "Prefer not to say" is selected, clear all others
     if (option === "None of these" || option === "Prefer not to say") {
       setSelectedOptions([option]);
-    } else {
-      // Remove "None of these" and "Prefer not to say" if selecting other options
+      setShowCustomInput(false);
+      setCustomInput('');
+    } else if (option === "Something else") {
+      // Toggle "Something else" and show input field
       const filteredOptions = selectedOptions.filter(
         o => o !== "None of these" && o !== "Prefer not to say"
+      );
+
+      if (filteredOptions.includes(option)) {
+        setSelectedOptions(filteredOptions.filter(o => o !== option));
+        setShowCustomInput(false);
+        setCustomInput('');
+      } else {
+        setSelectedOptions([...filteredOptions, option]);
+        setShowCustomInput(true);
+      }
+    } else {
+      // Remove "None of these", "Prefer not to say", and "Something else" if selecting other options
+      const filteredOptions = selectedOptions.filter(
+        o => o !== "None of these" && o !== "Prefer not to say" && o !== "Something else"
       );
 
       if (filteredOptions.includes(option)) {
@@ -35,18 +84,36 @@ export default function QuizScreen5({ onNext, onBack }) {
       } else {
         setSelectedOptions([...filteredOptions, option]);
       }
+      setShowCustomInput(false);
+      setCustomInput('');
     }
   };
 
   const handleNext = () => {
     if (selectedOptions.length > 0) {
-      onNext({ conditions: selectedOptions });
+      const conditions = [...selectedOptions];
+
+      // If "Something else" is selected and user entered custom text, include it
+      if (selectedOptions.includes("Something else") && customInput.trim()) {
+        const index = conditions.indexOf("Something else");
+        conditions[index] = `Something else: ${customInput.trim()}`;
+      }
+
+      onNext({ conditions });
     }
   };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.content}>
+      <Animated.View
+        style={[
+          styles.content,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
         {onBack && (
           <TouchableOpacity
             onPress={onBack}
@@ -72,41 +139,93 @@ export default function QuizScreen5({ onNext, onBack }) {
         </Text>
 
         <View style={styles.optionsContainer}>
-          {options.map((option) => {
+          {options.map((option, index) => {
             const isSelected = selectedOptions.includes(option);
             const isSpecialOption = option === "None of these" || option === "Prefer not to say";
+            const isSomethingElse = option === "Something else";
 
             return (
-              <TouchableOpacity
+              <Animated.View
                 key={option}
-                style={[
-                  styles.optionButton,
-                  {
-                    backgroundColor: isSelected ? theme.primary : theme.cardBackground,
-                    borderColor: theme.border,
-                    borderWidth: isSpecialOption ? 2 : 1,
-                  }
-                ]}
-                onPress={() => toggleOption(option)}
+                style={{
+                  transform: [{
+                    scale: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.9, 1],
+                    })
+                  }],
+                  opacity: fadeAnim,
+                }}
               >
-                <Text
+                <TouchableOpacity
                   style={[
-                    styles.optionText,
+                    styles.optionButton,
                     {
-                      color: isSelected ? '#FFFFFF' : theme.text,
-                      fontWeight: isSpecialOption ? '600' : 'normal'
+                      backgroundColor: isSelected ? theme.primary : theme.cardBackground,
+                      borderColor: theme.border,
+                      borderWidth: isSpecialOption ? 2 : 1,
                     }
                   ]}
+                  onPress={() => toggleOption(option)}
+                  activeOpacity={0.7}
                 >
-                  {option}
-                </Text>
-                {isSelected && (
-                  <Text style={styles.checkmark}>✓</Text>
-                )}
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.optionText,
+                      {
+                        color: isSelected ? '#FFFFFF' : theme.text,
+                        fontWeight: (isSpecialOption || isSomethingElse) ? '600' : 'normal'
+                      }
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                  {isSelected && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
             );
           })}
         </View>
+
+        {/* Custom Input Field for "Something else" */}
+        {showCustomInput && (
+          <Animated.View
+            style={[
+              styles.customInputContainer,
+              {
+                maxHeight: customInputAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 120],
+                }),
+                opacity: customInputAnim,
+              }
+            ]}
+          >
+            <TextInput
+              style={[
+                styles.customInput,
+                {
+                  backgroundColor: theme.cardBackground,
+                  borderColor: theme.border,
+                  color: theme.text,
+                }
+              ]}
+              placeholder="Please describe..."
+              placeholderTextColor={theme.textSecondary}
+              value={customInput}
+              onChangeText={setCustomInput}
+              multiline
+              numberOfLines={3}
+              maxLength={200}
+              autoFocus
+            />
+            <Text style={[styles.characterCount, { color: theme.textSecondary }]}>
+              {customInput.length}/200
+            </Text>
+          </Animated.View>
+        )}
 
         <TouchableOpacity
           style={[
@@ -121,7 +240,7 @@ export default function QuizScreen5({ onNext, onBack }) {
         >
           <Text style={styles.nextButtonText}>Complete →</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -197,5 +316,24 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
+  },
+  customInputContainer: {
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  customInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    textAlignVertical: 'top',
+    minHeight: 80,
+  },
+  characterCount: {
+    fontSize: 12,
+    textAlign: 'right',
+    marginTop: 4,
+    marginRight: 4,
   },
 });

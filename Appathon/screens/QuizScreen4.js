@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
 export default function QuizScreen4({ onNext, onBack }) {
   const { theme } = useTheme();
   const [selectedOptions, setSelectedOptions] = useState([]);
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
   const options = [
     "Reading",
@@ -35,7 +45,7 @@ export default function QuizScreen4({ onNext, onBack }) {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.content}>
+      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {onBack && (
           <TouchableOpacity
             onPress={onBack}
@@ -64,29 +74,31 @@ export default function QuizScreen4({ onNext, onBack }) {
           {options.map((option) => {
             const isSelected = selectedOptions.includes(option);
             return (
-              <TouchableOpacity
-                key={option}
-                style={[
-                  styles.optionButton,
-                  {
-                    backgroundColor: isSelected ? theme.primary : theme.cardBackground,
-                    borderColor: theme.border
-                  }
-                ]}
-                onPress={() => toggleOption(option)}
-              >
-                <Text
+              <Animated.View key={option} style={{ transform: [{ scale: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) }], opacity: fadeAnim }}>
+                <TouchableOpacity
                   style={[
-                    styles.optionText,
-                    { color: isSelected ? '#FFFFFF' : theme.text }
+                    styles.optionButton,
+                    {
+                      backgroundColor: isSelected ? theme.primary : theme.cardBackground,
+                      borderColor: theme.border
+                    }
                   ]}
+                  onPress={() => toggleOption(option)}
+                  activeOpacity={0.7}
                 >
-                  {option}
-                </Text>
-                {isSelected && (
-                  <Text style={styles.checkmark}>✓</Text>
-                )}
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.optionText,
+                      { color: isSelected ? '#FFFFFF' : theme.text }
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                  {isSelected && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
             );
           })}
         </View>
@@ -106,7 +118,7 @@ export default function QuizScreen4({ onNext, onBack }) {
             Next → ({selectedOptions.length} selected)
           </Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </ScrollView>
   );
 }

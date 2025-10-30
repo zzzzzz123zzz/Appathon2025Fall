@@ -116,7 +116,7 @@ export default function NoteScreen({ onBack, onFinish }) {
           onPress={handleGoDeeper}
           activeOpacity={0.7}
         >
-          <Ionicons name="bulb-outline" size={24} color={theme.primary} />
+          <Ionicons name="star" size={22} color={theme.primary} />
           <Text style={[styles.buttonText, { color: theme.primary }]}>
             Go Deeper
           </Text>
@@ -132,7 +132,7 @@ export default function NoteScreen({ onBack, onFinish }) {
           disabled={noteText.trim().length === 0}
           activeOpacity={0.7}
         >
-          <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+          <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
           <Text style={[styles.buttonText, { color: "#FFFFFF" }]}>
             Finish Entry
           </Text>
@@ -214,11 +214,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 14,
-    gap: 10,
-    minHeight: 56,
+    gap: 8,
+    minHeight: 44,
   },
   goDeeperButton: {
     borderWidth: 2.5,
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   buttonText: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "700",
     letterSpacing: 0.3,
   },
