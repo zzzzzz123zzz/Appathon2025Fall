@@ -33,21 +33,35 @@ export default function TabBar({ activeTab, onTabChange }) {
           return (
             <TouchableOpacity
               key={tab.id}
-              style={styles.tab}
+              style={[
+                styles.tab,
+                isActive && {
+                  backgroundColor: theme.primary + '10',
+                  borderRadius: 16,
+                  marginHorizontal: 8,
+                }
+              ]}
               onPress={() => onTabChange(tab.id)}
-              activeOpacity={0.7}
+              activeOpacity={0.6}
             >
-              <Ionicons
-                name={isActive ? tab.icon : `${tab.icon}-outline`}
-                size={28}
-                color={isActive ? theme.primary : theme.textSecondary}
-              />
+              <View style={[
+                styles.iconContainer,
+                isActive && {
+                  transform: [{ scale: 1.05 }],
+                }
+              ]}>
+                <Ionicons
+                  name={isActive ? tab.icon : `${tab.icon}-outline`}
+                  size={26}
+                  color={isActive ? theme.primary : theme.textSecondary}
+                />
+              </View>
               <Text
                 style={[
                   styles.tabLabel,
                   {
                     color: isActive ? theme.primary : theme.textSecondary,
-                    fontWeight: isActive ? "600" : "400",
+                    fontWeight: isActive ? "700" : "500",
                   },
                 ]}
               >
@@ -64,19 +78,33 @@ export default function TabBar({ activeTab, onTabChange }) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    borderTopWidth: 1,
+    borderTopWidth: 0,
     paddingBottom: 20,
     paddingTop: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -3,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 8,
   },
   tab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 2,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  iconContainer: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   tabLabel: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 6,
     fontWeight: "500",
+    letterSpacing: 0.2,
   },
 });

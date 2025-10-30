@@ -8,7 +8,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDfc_kZmRFKRlQbQiAgXkDvfx0z15YEoJM",
   authDomain: "ai-health-journal-60978.firebaseapp.com",
   projectId: "ai-health-journal-60978",
-  storageBucket: "ai-health-journal-60978.firebasestorage.app",
+  storageBucket: "ai-health-journal-60978.appspot.com",
   messagingSenderId: "952074679292",
   appId: "1:952074679292:web:c6b0d6325210d23195b879",
   measurementId: "G-Q9ZDDDB291"
