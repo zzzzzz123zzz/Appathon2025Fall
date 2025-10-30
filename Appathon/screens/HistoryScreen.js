@@ -43,14 +43,23 @@ export default function HistoryScreen({
     try {
       // Get user profile
       const profileResult = await getUserProfile(currentUser.uid);
-      if (profileResult.success && profileResult.data.name) {
-        setUserName(profileResult.data.name);
-      }
+      if (profileResult.success) {
+        if (profileResult.data.name) {
+          setUserName(profileResult.data.name);
+        }
+        // Store profile image in notes for header display
+        const profileImage = profileResult.data.profileImage;
 
-      // Get notes
-      const notesResult = await getUserNotes(currentUser.uid);
-      if (notesResult.success) {
-        setNotes(notesResult.data);
+        // Get notes
+        const notesResult = await getUserNotes(currentUser.uid);
+        if (notesResult.success) {
+          // Add profile image to notes for easy access
+          const notesWithProfile = notesResult.data.map(note => ({
+            ...note,
+            userProfileImage: profileImage
+          }));
+          setNotes(notesWithProfile);
+        }
       }
     } catch (error) {
       console.error("Error loading user data:", error);
@@ -109,7 +118,14 @@ export default function HistoryScreen({
             <View
               style={[styles.profilePicture, { backgroundColor: theme.primary }]}
             >
-              <Ionicons name="person" size={24} color="#FFFFFF" />
+              {notes.length > 0 && notes[0]?.userProfileImage ? (
+                <Image
+                  source={{ uri: notes[0].userProfileImage }}
+                  style={styles.profileImage}
+                />
+              ) : (
+                <Ionicons name="person" size={24} color="#FFFFFF" />
+              )}
             </View>
           </TouchableOpacity>
         </View>
@@ -167,8 +183,8 @@ export default function HistoryScreen({
         </View>
       </View>
 
-      {/* Notes Section - Now takes up most of the screen */}
-      <View style={styles.notesSection}>
+      {/* Notes Section - Extends to bottom with background */}
+      <View style={[styles.notesSection, { backgroundColor: theme.cardBackground }]}>
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.primary} />
@@ -274,6 +290,11 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: 44,
+    height: 44,
   },
   searchContainer: {
     flexDirection: "row",
@@ -330,6 +351,10 @@ const styles = StyleSheet.create({
   notesSection: {
     flex: 1,
     paddingHorizontal: 24,
+    paddingTop: 16,
+    marginTop: 16,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   loadingContainer: {
     flex: 1,
@@ -357,22 +382,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   notesContentContainer: {
-    paddingTop: 16,
-    paddingBottom: 80,
+    paddingTop: 8,
+    paddingBottom: 100,
   },
   noteCard: {
     padding: 18,
     borderRadius: 16,
     marginBottom: 16,
-    borderWidth: 1,
+    borderWidth: 0,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 1,
   },
   noteContent: {
     fontSize: 15,

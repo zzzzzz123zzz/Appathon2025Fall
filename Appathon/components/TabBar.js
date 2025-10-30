@@ -23,7 +23,7 @@ export default function TabBar({ activeTab, onTabChange }) {
           >
             <Ionicons
               name={isActive ? tab.icon : `${tab.icon}-outline`}
-              size={24}
+              size={28}
               color={isActive ? theme.primary : theme.textSecondary}
             />
             <Text
@@ -48,17 +48,18 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    paddingBottom: 20,
-    paddingTop: 8,
+    paddingBottom: 24,
+    paddingTop: 12,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   tabLabel: {
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 13,
+    marginTop: 6,
+    fontWeight: '500',
   },
 });
