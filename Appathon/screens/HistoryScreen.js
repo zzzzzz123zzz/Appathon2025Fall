@@ -28,6 +28,7 @@ export default function HistoryScreen({
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("User");
+  const [profileImage, setProfileImage] = useState(null);
   const micButtonScale = useRef(new Animated.Value(1)).current;
 
   // Fetch user profile and notes
@@ -47,18 +48,14 @@ export default function HistoryScreen({
         if (profileResult.data.name) {
           setUserName(profileResult.data.name);
         }
-        // Store profile image in notes for header display
-        const profileImage = profileResult.data.profileImage;
+        if (profileResult.data.profileImage) {
+          setProfileImage(profileResult.data.profileImage);
+        }
 
         // Get notes
         const notesResult = await getUserNotes(currentUser.uid);
         if (notesResult.success) {
-          // Add profile image to notes for easy access
-          const notesWithProfile = notesResult.data.map(note => ({
-            ...note,
-            userProfileImage: profileImage
-          }));
-          setNotes(notesWithProfile);
+          setNotes(notesResult.data);
         }
       }
     } catch (error) {
@@ -95,8 +92,8 @@ export default function HistoryScreen({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.headerSection}>
+    <View style={[styles.container, { backgroundColor: theme.cardBackground }]}>
+      <View style={[styles.headerSection, { backgroundColor: theme.background }]}>
         <View style={styles.headerRow}>
           <View>
             <Text style={[styles.greeting, { color: theme.textSecondary }]}>
@@ -118,9 +115,9 @@ export default function HistoryScreen({
             <View
               style={[styles.profilePicture, { backgroundColor: theme.primary }]}
             >
-              {notes.length > 0 && notes[0]?.userProfileImage ? (
+              {profileImage ? (
                 <Image
-                  source={{ uri: notes[0].userProfileImage }}
+                  source={{ uri: profileImage }}
                   style={styles.profileImage}
                 />
               ) : (
@@ -191,12 +188,8 @@ export default function HistoryScreen({
           </View>
         ) : notes.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={80} color={theme.border} />
-            <Text style={[styles.emptyTitle, { color: theme.text }]}>
-              No entries yet
-            </Text>
-            <Text style={[styles.emptyDescription, { color: theme.textSecondary }]}>
-              Start journaling by creating your first entry
+            <Text style={[styles.description, { color: theme.text }]}>
+              Your journal entries will appear here
             </Text>
           </View>
         ) : (
@@ -367,16 +360,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 40,
   },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: "600",
-    marginTop: 24,
-    marginBottom: 8,
-  },
-  emptyDescription: {
-    fontSize: 16,
+  description: {
+    fontSize: 18,
+    lineHeight: 28,
+    opacity: 0.7,
     textAlign: "center",
-    lineHeight: 22,
   },
   notesScrollView: {
     flex: 1,

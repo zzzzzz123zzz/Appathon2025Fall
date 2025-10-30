@@ -278,12 +278,12 @@ function MainApp() {
   // Home screen (Dashboard) with Tabs
   if (screen === "home") {
     return (
-      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
+      <View style={[styles.screenWrapper, { backgroundColor: theme.cardBackground }]}>
         <Animated.View
           style={[styles.animatedContainer, { opacity: fadeAnim }]}
         >
           <SafeAreaView
-            style={[styles.safeArea, { backgroundColor: theme.background }]}
+            style={[styles.safeArea, { backgroundColor: theme.cardBackground }]}
           >
             {activeTab === 'home' ? (
               <HistoryScreen

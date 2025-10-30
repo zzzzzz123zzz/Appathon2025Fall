@@ -25,7 +25,6 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile, curren
   const [userName, setUserName] = useState("");
   const [profileImage, setProfileImage] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     if (visible && currentUser) {
@@ -53,43 +52,6 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile, curren
     }
   };
 
-  const handleChangeProfilePicture = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Please grant camera roll permissions to change your profile picture.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.5,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setUploadingImage(true);
-        const imageUri = result.assets[0].uri;
-
-        await saveUserProfile(currentUser.uid, {
-          profileImage: imageUri,
-        });
-
-        setProfileImage(imageUri);
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to update profile picture');
-    } finally {
-      setUploadingImage(false);
-    }
-  };
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -190,13 +152,11 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile, curren
             {/* Profile Section */}
             <View style={[styles.section]}>
               <View style={styles.profileContainer}>
-                <TouchableOpacity
+                <View
                   style={[
                     styles.avatarContainer,
                     { backgroundColor: theme.primary },
                   ]}
-                  onPress={handleChangeProfilePicture}
-                  disabled={uploadingImage}
                 >
                   {profileImage ? (
                     <Image
@@ -206,15 +166,7 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile, curren
                   ) : (
                     <Ionicons name="person" size={40} color="#ffffff" />
                   )}
-                  {uploadingImage && (
-                    <View style={styles.uploadingOverlay}>
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    </View>
-                  )}
-                  <View style={[styles.cameraIconBadge, { backgroundColor: theme.primary }]}>
-                    <Ionicons name="camera" size={14} color="#FFFFFF" />
-                  </View>
-                </TouchableOpacity>
+                </View>
                 <View style={styles.profileInfo}>
                   {loadingUser ? (
                     <ActivityIndicator size="small" color={theme.primary} />
@@ -460,28 +412,6 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 64,
     height: 64,
-  },
-  uploadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cameraIconBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   profileInfo: {
     marginLeft: 16,

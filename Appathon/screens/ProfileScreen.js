@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from "../context/ThemeContext";
 import { getUserProfile, saveUserProfile } from "../services/firestoreService";
+import { uploadProfileImage } from "../services/storageService";
 
 export default function ProfileScreen({ onBack, currentUser }) {
   const { theme } = useTheme();
@@ -76,13 +77,20 @@ export default function ProfileScreen({ onBack, currentUser }) {
         setUploadingImage(true);
         const imageUri = result.assets[0].uri;
 
-        // Save to Firestore
-        await saveUserProfile(currentUser.uid, {
-          profileImage: imageUri,
-        });
+        // Upload to Firebase Storage
+        const uploadResult = await uploadProfileImage(currentUser.uid, imageUri);
 
-        setProfileImage(imageUri);
-        Alert.alert('Success', 'Profile picture updated!');
+        if (uploadResult.success) {
+          // Save the download URL to Firestore
+          await saveUserProfile(currentUser.uid, {
+            profileImage: uploadResult.url,
+          });
+
+          setProfileImage(uploadResult.url);
+          Alert.alert('Success', 'Profile picture updated!');
+        } else {
+          Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
