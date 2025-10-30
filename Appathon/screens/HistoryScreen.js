@@ -87,131 +87,151 @@ export default function HistoryScreen({
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={[styles.greeting, { color: theme.textSecondary }]}>
-            {greeting},
-          </Text>
-          <Text
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            style={[styles.username, { color: theme.primary }]}
+      <View style={styles.headerSection}>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={[styles.greeting, { color: theme.textSecondary }]}>
+              {greeting},
+            </Text>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={[styles.username, { color: theme.primary }]}
+            >
+              {userName} 👋
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={() => setSettingsVisible(true)}
+            style={styles.profilePictureButton}
           >
-            {userName} 👋
-          </Text>
+            <View
+              style={[styles.profilePicture, { backgroundColor: theme.primary }]}
+            >
+              <Ionicons name="person" size={24} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          onPress={() => setSettingsVisible(true)}
-          style={styles.profilePictureButton}
+        <View
+          style={[
+            styles.searchContainer,
+            { backgroundColor: theme.cardBackground, borderColor: theme.border },
+          ]}
         >
-          <View
-            style={[styles.profilePicture, { backgroundColor: theme.primary }]}
+          <Ionicons
+            name="search"
+            size={20}
+            color={theme.primary}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={[styles.searchInput, { color: theme.text }]}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search your notes..."
+            placeholderTextColor={theme.textSecondary}
+          />
+          {searchQuery.length > 0 && (
+            <Ionicons
+              name="close-circle"
+              size={20}
+              color={theme.text}
+              style={styles.clearIcon}
+              onPress={() => setSearchQuery("")}
+            />
+          )}
+        </View>
+
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={[styles.secondaryButton, { borderColor: theme.primary }]}
+            onPress={onCreateNote}
           >
-            <Ionicons name="person" size={24} color="#FFFFFF" />
-          </View>
-        </TouchableOpacity>
+            <Ionicons name="add-circle-outline" size={22} color={theme.primary} />
+            <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>
+              New Entry
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.secondaryButton, { borderColor: theme.primary }]}
+            onPress={onViewSummary}
+          >
+            <Ionicons name="bar-chart-outline" size={22} color={theme.primary} />
+            <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>
+              Summary
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <View
-        style={[
-          styles.searchContainer,
-          { backgroundColor: theme.cardBackground, borderColor: theme.border },
-        ]}
-      >
-        <Ionicons
-          name="search"
-          size={20}
-          color={theme.primary}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={[styles.searchInput, { color: theme.text }]}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor={theme.textSecondary}
-        />
-        {searchQuery.length > 0 && (
-          <Ionicons
-            name="close-circle"
-            size={20}
-            color={theme.text}
-            style={styles.clearIcon}
-            onPress={() => setSearchQuery("")}
-          />
+      {/* Notes Section - Now takes up most of the screen */}
+      <View style={styles.notesSection}>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.primary} />
+          </View>
+        ) : notes.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="document-text-outline" size={80} color={theme.border} />
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>
+              No entries yet
+            </Text>
+            <Text style={[styles.emptyDescription, { color: theme.textSecondary }]}>
+              Start journaling by creating your first entry
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.notesScrollView}
+            contentContainerStyle={styles.notesContentContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {filteredNotes.map((note) => (
+              <TouchableOpacity
+                key={note.id}
+                style={[
+                  styles.noteCard,
+                  {
+                    backgroundColor: theme.cardBackground,
+                    borderColor: theme.border,
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.noteContent, { color: theme.text }]} numberOfLines={4}>
+                  {note.content}
+                </Text>
+                <View style={styles.noteFooter}>
+                  <Text style={[styles.noteDate, { color: theme.textSecondary }]}>
+                    {note.createdAt?.toDate?.()?.toLocaleDateString() || 'Recent'}
+                  </Text>
+                  {note.mood && (
+                    <View style={[styles.moodBadge, { backgroundColor: theme.primary + '20' }]}>
+                      <Text style={[styles.moodText, { color: theme.primary }]}>
+                        {note.mood}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         )}
       </View>
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity
-          style={[styles.secondaryButton, { borderColor: theme.primary }]}
-          onPress={onCreateNote}
-        >
-          <Ionicons name="add-circle-outline" size={22} color={theme.primary} />
-          <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>
-            Create Note
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.secondaryButton, { borderColor: theme.primary }]}
-          onPress={onViewSummary}
-        >
-          <Ionicons name="bar-chart-outline" size={22} color={theme.primary} />
-          <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>
-            Summary
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
-        </View>
-      ) : notes.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={[styles.description, { color: theme.text }]}>
-            Your journal entries will appear here
-          </Text>
-        </View>
-      ) : (
-        <ScrollView style={styles.notesContainer} showsVerticalScrollIndicator={false}>
-          {filteredNotes.map((note) => (
-            <View
-              key={note.id}
-              style={[
-                styles.noteCard,
-                {
-                  backgroundColor: theme.cardBackground,
-                  borderColor: theme.border,
-                },
-              ]}
-            >
-              <Text style={[styles.noteContent, { color: theme.text }]} numberOfLines={3}>
-                {note.content}
-              </Text>
-              <Text style={[styles.noteDate, { color: theme.textSecondary }]}>
-                {note.createdAt?.toDate?.()?.toLocaleDateString() || 'Recent'}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      )}
-
-      <View style={styles.micButtonContainer}>
+      {/* Floating Action Button for Voice */}
+      <TouchableOpacity
+        style={[styles.fabButton, { backgroundColor: theme.primary }]}
+        onPress={handleMicPress}
+        activeOpacity={0.8}
+      >
         <Animated.View style={{ transform: [{ scale: micButtonScale }] }}>
-          <TouchableOpacity
-            style={[styles.micButton, { backgroundColor: theme.primary }]}
-            onPress={handleMicPress}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="mic" size={48} color="#FFFFFF" />
-          </TouchableOpacity>
+          <Ionicons name="mic" size={28} color="#FFFFFF" />
         </Animated.View>
-        <Text style={[styles.micButtonLabel, { color: theme.textSecondary }]}>
-          Tap to start talking
-        </Text>
-      </View>
+      </TouchableOpacity>
 
       <SettingsDrawer
         visible={settingsVisible}
@@ -222,6 +242,7 @@ export default function HistoryScreen({
             onEditProfile();
           }
         }}
+        currentUser={currentUser}
       />
     </View>
   );
@@ -230,14 +251,19 @@ export default function HistoryScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 60,
+  },
+  headerSection: {
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'transparent',
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 32,
+    marginBottom: 20,
   },
   profilePictureButton: {
     padding: 4,
@@ -301,31 +327,9 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "700",
   },
-  micButtonContainer: {
+  notesSection: {
     flex: 1,
-    justifyContent: "flex-end",
-    alignItems: "center",
-    paddingBottom: 60,
-  },
-  micButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#fff",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  micButtonLabel: {
-    fontSize: 18,
-    fontWeight: "500",
-    marginTop: 16,
+    paddingHorizontal: 24,
   },
   loadingContainer: {
     flex: 1,
@@ -336,23 +340,80 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 40,
   },
-  notesContainer: {
-    flex: 1,
-    marginBottom: 16,
-  },
-  noteCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
-  noteContent: {
-    fontSize: 16,
-    lineHeight: 22,
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: "600",
+    marginTop: 24,
     marginBottom: 8,
   },
+  emptyDescription: {
+    fontSize: 16,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  notesScrollView: {
+    flex: 1,
+  },
+  notesContentContainer: {
+    paddingTop: 16,
+    paddingBottom: 80,
+  },
+  noteCard: {
+    padding: 18,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  noteContent: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  noteFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   noteDate: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  moodBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  moodText: {
     fontSize: 12,
+    fontWeight: "600",
+    textTransform: "capitalize",
+  },
+  fabButton: {
+    position: "absolute",
+    bottom: 24,
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
 });

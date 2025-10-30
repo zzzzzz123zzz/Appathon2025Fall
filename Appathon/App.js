@@ -30,6 +30,7 @@ import QuizScreen2 from "./screens/QuizScreen2";
 import QuizScreen3 from "./screens/QuizScreen3";
 import QuizScreen4 from "./screens/QuizScreen4";
 import QuizScreen5 from "./screens/QuizScreen5";
+import TabBar from "./components/TabBar";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 
 function MainApp() {
@@ -49,6 +50,9 @@ function MainApp() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isNewSignup, setIsNewSignup] = useState(false);
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState('home');
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -225,7 +229,7 @@ function MainApp() {
   };
 
   const navigateToChat = () => {
-    navigateWithAnimation("chat", "modal");
+    setActiveTab('chat');
   };
 
   const navigateToProfile = () => {
@@ -271,7 +275,7 @@ function MainApp() {
     );
   }
 
-  // Home screen (Dashboard)
+  // Home screen (Dashboard) with Tabs
   if (screen === "home") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
@@ -281,13 +285,18 @@ function MainApp() {
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <HistoryScreen
-              onCreateNote={navigateToNote}
-              onViewSummary={navigateToSummary}
-              onStartChat={navigateToChat}
-              onEditProfile={navigateToProfile}
-              currentUser={currentUser}
-            />
+            {activeTab === 'home' ? (
+              <HistoryScreen
+                onCreateNote={navigateToNote}
+                onViewSummary={navigateToSummary}
+                onStartChat={navigateToChat}
+                onEditProfile={navigateToProfile}
+                currentUser={currentUser}
+              />
+            ) : (
+              <ChatScreen onBack={() => setActiveTab('home')} onFinish={navigateToSuccess} />
+            )}
+            <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -311,25 +320,6 @@ function MainApp() {
     );
   }
 
-  // Chat screen (modal slide from bottom)
-  if (screen === "chat") {
-    return (
-      <Animated.View
-        style={[
-          styles.animatedContainer,
-          {
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        <SafeAreaView
-          style={[styles.safeArea, { backgroundColor: theme.background }]}
-        >
-          <ChatScreen onBack={navigateToHome} onFinish={navigateToSuccess} />
-        </SafeAreaView>
-      </Animated.View>
-    );
-  }
 
   // Profile screen
   if (screen === "profile") {
@@ -341,7 +331,7 @@ function MainApp() {
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <ProfileScreen onBack={navigateToHome} />
+            <ProfileScreen onBack={navigateToHome} currentUser={currentUser} />
           </SafeAreaView>
         </Animated.View>
       </View>

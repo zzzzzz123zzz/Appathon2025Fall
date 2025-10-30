@@ -6,16 +6,40 @@ import {
   ScrollView,
   Switch,
   Alert,
+  ActivityIndicator,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
+import { getUserProfile } from "../services/firestoreService";
 
-export default function ProfileScreen({ onBack }) {
+export default function ProfileScreen({ onBack, currentUser }) {
   const { theme } = useTheme();
-  const [profileName, setProfileName] = useState("Theodore");
+  const [profileName, setProfileName] = useState("");
+  const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [reminderFrequency, setReminderFrequency] = useState(2); // times per day
+
+  useEffect(() => {
+    if (currentUser) {
+      loadUserProfile();
+    }
+  }, [currentUser]);
+
+  const loadUserProfile = async () => {
+    if (!currentUser) return;
+
+    try {
+      const result = await getUserProfile(currentUser.uid);
+      if (result.success && result.data.name) {
+        setProfileName(result.data.name);
+      }
+    } catch (error) {
+      console.error("Error loading profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChangeProfilePicture = () => {
     // TODO: Implement image picker
@@ -80,9 +104,13 @@ export default function ProfileScreen({ onBack }) {
               <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>
                 Name
               </Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>
-                {profileName}
-              </Text>
+              {loading ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <Text style={[styles.infoValue, { color: theme.text }]}>
+                  {profileName || "User"}
+                </Text>
+              )}
             </View>
           </View>
         </View>
