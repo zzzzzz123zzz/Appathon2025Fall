@@ -24,122 +24,113 @@ export default function ChatScreen({ onBack, onFinish }) {
       timestamp: new Date(),
     },
   ]);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const messageOpacity = useRef(new Animated.Value(0)).current;
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef(null);
-
-  // Speech recognition hook
-  const {
-    isRecording,
-    isTranscribing,
-    startRecording,
-    recordAndTranscribe,
-  } = useSpeechRecognition();
+  
+  // Animations
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const micButtonScale = useRef(new Animated.Value(1)).current;
+  const recordingRipple = useRef(new Animated.Value(0)).current;
 
   // Pulse animation when recording
   useEffect(() => {
     if (isRecording) {
+      // Pulse animation
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.1,
-            duration: 500,
+            toValue: 1.15,
+            duration: 800,
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 500,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      // Ripple effect
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(recordingRipple, {
+            toValue: 1,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(recordingRipple, {
+            toValue: 0,
+            duration: 0,
             useNativeDriver: true,
           }),
         ])
       ).start();
     } else {
       pulseAnim.setValue(1);
+      recordingRipple.setValue(0);
     }
   }, [isRecording]);
 
-  // Fade in messages when they appear
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messageOpacity.setValue(0);
-    Animated.timing(messageOpacity, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
   }, [messages.length]);
 
-  const handleStartRecording = async () => {
-    try {
-      await startRecording();
-    } catch (error) {
-      console.error("Error starting recording:", error);
-      Alert.alert(
-        "Recording Error",
-        "Could not start recording. Please check microphone permissions.",
-        [{ text: "OK" }]
-      );
-    }
+  const handleStartRecording = () => {
+    setIsRecording(true);
+    
+    // Haptic feedback
+    Animated.sequence([
+      Animated.timing(micButtonScale, {
+        toValue: 0.9,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(micButtonScale, {
+        toValue: 1,
+        tension: 300,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
-  const handleStopRecording = async () => {
-    try {
-      // Stop recording and get transcription
-      const transcription = await recordAndTranscribe();
+  const handleStopRecording = () => {
+    setIsRecording(false);
+    
+    // Add user message with animation
+    const newMessage = {
+      id: messages.length + 1,
+      text: "I've been feeling a bit overwhelmed lately with work and personal life. Sometimes it feels like I'm not doing enough, even when I'm trying my best.",
+      sender: "user",
+      timestamp: new Date(),
+    };
+    
+    setMessages([...messages, newMessage]);
 
-      if (transcription) {
-        // Add user message with transcription
-        const newMessage = {
-          id: messages.length + 1,
-          text: transcription,
-          sender: "user",
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, newMessage]);
+    // Show typing indicator after a delay
+    setTimeout(() => {
+      setIsTyping(true);
+    }, 800);
 
-        // Scroll to bottom
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-
-        // Simulate AI response (replace with actual AI integration)
-        setTimeout(() => {
-          const aiResponses = [
-            "I understand. Can you tell me more about that?",
-            "Thank you for sharing. How does that make you feel?",
-            "I hear you. What do you think is contributing to these feelings?",
-            "That's important. Have you noticed any patterns?",
-            "I appreciate you opening up. What would help you feel better?",
-          ];
-
-          const randomResponse =
-            aiResponses[Math.floor(Math.random() * aiResponses.length)];
-
-          const aiResponse = {
-            id: messages.length + 2,
-            text: randomResponse,
-            sender: "ai",
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, aiResponse]);
-
-          // Scroll to bottom for AI response
-          setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
-          }, 100);
-        }, 1000);
-      }
-    } catch (error) {
-      console.error("Error stopping recording:", error);
-      Alert.alert(
-        "Transcription Error",
-        "Could not process your message. Please try again.",
-        [{ text: "OK" }]
-      );
-    }
+    // Simulate AI response
+    setTimeout(() => {
+      setIsTyping(false);
+      const aiResponse = {
+        id: messages.length + 2,
+        text: "I hear you. Feeling overwhelmed is really tough, especially when you're giving it your all. Can you tell me more about what's been weighing on you most?",
+        sender: "ai",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, aiResponse]);
+    }, 2500);
   };
 
   const handleFinishSession = () => {
-    // Convert conversation to note format
     const conversationText = messages
       .map((msg) => `${msg.sender === "user" ? "Me" : "Assistant"}: ${msg.text}`)
       .join("\n\n");
@@ -149,7 +140,6 @@ export default function ChatScreen({ onBack, onFinish }) {
     }
   };
 
-  // Get current date
   const getCurrentDate = () => {
     const date = new Date();
     const options = {
@@ -167,13 +157,26 @@ export default function ChatScreen({ onBack, onFinish }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
+      {/* Header with gradient effect */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={32} color={theme.primary} />
+        <TouchableOpacity 
+          onPress={onBack} 
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={28} color={theme.primary} />
         </TouchableOpacity>
-        <Text style={[styles.dateText, { color: theme.text }]}>
-          {getCurrentDate()}
-        </Text>
+        <View style={styles.headerCenter}>
+          <Text style={[styles.dateText, { color: theme.text }]}>
+            {getCurrentDate()}
+          </Text>
+          <View style={styles.statusIndicator}>
+            <View style={[styles.statusDot, { backgroundColor: "#34D399" }]} />
+            <Text style={[styles.statusText, { color: theme.textSecondary }]}>
+              Listening
+            </Text>
+          </View>
+        </View>
         <View style={styles.placeholder} />
       </View>
 
@@ -181,105 +184,275 @@ export default function ChatScreen({ onBack, onFinish }) {
         ref={scrollViewRef}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
+        showsVerticalScrollIndicator={false}
       >
-        {messages.map((message) => (
-          <View
+        {messages.map((message, index) => (
+          <MessageBubble
             key={message.id}
-            style={[
-              styles.messageBubble,
-              message.sender === "user"
-                ? [styles.userMessage, { backgroundColor: theme.primary }]
-                : [
-                    styles.aiMessage,
-                    {
-                      backgroundColor: theme.cardBackground,
-                      borderColor: theme.border,
-                    },
-                  ],
-            ]}
-          >
-            <Text
-              style={[
-                styles.messageText,
-                {
-                  color: message.sender === "user" ? "#FFFFFF" : theme.text,
-                },
-              ]}
-            >
-              {message.text}
-            </Text>
-          </View>
+            message={message}
+            theme={theme}
+            index={index}
+          />
         ))}
 
-        {isTranscribing && (
-          <View
-            style={[
-              styles.messageBubble,
-              styles.aiMessage,
-              {
-                backgroundColor: theme.cardBackground,
-                borderColor: theme.border,
-              },
-            ]}
-          >
-            <Text style={[styles.messageText, { color: theme.textSecondary }]}>
-              Transcribing...
-            </Text>
-          </View>
-        )}
+        {/* Typing indicator */}
+        {isTyping && <TypingIndicator theme={theme} />}
       </ScrollView>
 
       <View
         style={[
           styles.bottomContainer,
-          { backgroundColor: theme.background, borderTopColor: theme.border },
+          { 
+            backgroundColor: theme.background, 
+            borderTopColor: theme.border 
+          },
         ]}
       >
-        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+        {/* Recording ripple effects */}
+        {isRecording && (
+          <>
+            <Animated.View
+              style={[
+                styles.ripple,
+                {
+                  backgroundColor: theme.primary,
+                  opacity: recordingRipple.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.3, 0],
+                  }),
+                  transform: [
+                    {
+                      scale: recordingRipple.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [1, 1.5],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.ripple,
+                styles.ripple2,
+                {
+                  backgroundColor: theme.primary,
+                  opacity: recordingRipple.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.2, 0],
+                  }),
+                  transform: [
+                    {
+                      scale: recordingRipple.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [1, 1.8],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          </>
+        )}
+
+        {/* Mic button */}
+        <Animated.View 
+          style={{ 
+            transform: [
+              { scale: pulseAnim },
+              { scale: micButtonScale }
+            ] 
+          }}
+        >
           <TouchableOpacity
             style={[
               styles.micButton,
               {
                 backgroundColor: isRecording ? "#EF4444" : theme.primary,
-                opacity: isTranscribing ? 0.5 : 1,
+                shadowColor: isRecording ? "#EF4444" : theme.primary,
               },
             ]}
             onPressIn={handleStartRecording}
             onPressOut={handleStopRecording}
-            activeOpacity={0.8}
-            disabled={isTranscribing}
+            activeOpacity={0.9}
           >
             <Ionicons
               name={isRecording ? "stop" : "mic"}
-              size={56}
+              size={40}
               color="#FFFFFF"
             />
           </TouchableOpacity>
         </Animated.View>
 
         <Text style={[styles.micLabel, { color: theme.textSecondary }]}>
-          {isTranscribing
-            ? "Processing..."
-            : isRecording
-            ? "Release to send"
-            : "Hold to speak"}
+          {isRecording ? "Release to send" : "Hold to speak"}
         </Text>
 
-        <TouchableOpacity
-          style={[
-            styles.finishButton,
-            { backgroundColor: theme.cardBackground, borderColor: theme.primary },
-          ]}
-          onPress={handleFinishSession}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="checkmark-circle" size={24} color={theme.primary} />
-          <Text style={[styles.finishButtonText, { color: theme.primary }]}>
-            Finish Session
-          </Text>
-        </TouchableOpacity>
+        {messages.length > 2 && (
+          <TouchableOpacity
+            style={[
+              styles.finishButton,
+              { 
+                backgroundColor: theme.cardBackground, 
+                borderColor: theme.primary 
+              },
+            ]}
+            onPress={handleFinishSession}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
+            <Text style={[styles.finishButtonText, { color: theme.primary }]}>
+              Finish Session
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </KeyboardAvoidingView>
+  );
+}
+
+// Animated message bubble component
+function MessageBubble({ message, theme, index }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        delay: index * 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 80,
+        friction: 8,
+        delay: index * 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }],
+      }}
+    >
+      <View
+        style={[
+          styles.messageBubble,
+          message.sender === "user"
+            ? [styles.userMessage, { backgroundColor: theme.primary }]
+            : [
+                styles.aiMessage,
+                {
+                  backgroundColor: theme.cardBackground,
+                  borderColor: theme.border,
+                },
+              ],
+        ]}
+      >
+        <Text
+          style={[
+            styles.messageText,
+            {
+              color: message.sender === "user" ? "#FFFFFF" : theme.text,
+            },
+          ]}
+        >
+          {message.text}
+        </Text>
+        <Text
+          style={[
+            styles.messageTime,
+            {
+              color: message.sender === "user" 
+                ? "rgba(255,255,255,0.7)" 
+                : theme.textSecondary,
+            },
+          ]}
+        >
+          {message.timestamp.toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })}
+        </Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+// Typing indicator component
+function TypingIndicator({ theme }) {
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animateDot = (dot, delay) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(dot, {
+            toValue: -10,
+            duration: 400,
+            delay,
+            useNativeDriver: true,
+          }),
+          Animated.timing(dot, {
+            toValue: 0,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    animateDot(dot1, 0);
+    animateDot(dot2, 150);
+    animateDot(dot3, 300);
+  }, []);
+
+  return (
+    <View
+      style={[
+        styles.typingContainer,
+        {
+          backgroundColor: theme.cardBackground,
+          borderColor: theme.border,
+        },
+      ]}
+    >
+      <Animated.View
+        style={[
+          styles.typingDot,
+          { 
+            backgroundColor: theme.primary,
+            transform: [{ translateY: dot1 }] 
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.typingDot,
+          { 
+            backgroundColor: theme.primary,
+            transform: [{ translateY: dot2 }] 
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.typingDot,
+          { 
+            backgroundColor: theme.primary,
+            transform: [{ translateY: dot3 }] 
+          },
+        ]}
+      />
+    </View>
   );
 }
 
@@ -306,17 +479,29 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
     width: 48,
-    height: 48,
+  },
+  headerCenter: {
+    flex: 1,
     alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 12,
   },
   dateText: {
     fontSize: 16,
-    fontWeight: "700",
-    flex: 1,
-    textAlign: "center",
-    letterSpacing: 0.5,
+    fontWeight: "600",
+  },
+  statusIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 6,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "500",
   },
   placeholder: {
     width: 48,
@@ -330,17 +515,9 @@ const styles = StyleSheet.create({
   },
   messageBubble: {
     maxWidth: "80%",
-    padding: 16,
-    borderRadius: 18,
-    marginBottom: 14,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
+    padding: 14,
+    borderRadius: 20,
+    marginBottom: 12,
   },
   userMessage: {
     alignSelf: "flex-end",
@@ -353,30 +530,53 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
-    lineHeight: 24,
-    fontWeight: "400",
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  messageTime: {
+    fontSize: 11,
+    alignSelf: "flex-end",
+  },
+  typingContainer: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    gap: 6,
+    padding: 16,
+    borderRadius: 20,
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  typingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   bottomContainer: {
     paddingHorizontal: 24,
-    paddingVertical: 24,
-    borderTopWidth: 0,
+    paddingVertical: 20,
+    borderTopWidth: 1,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
+    position: "relative",
+  },
+  ripple: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    top: 20,
+  },
+  ripple2: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
   },
   micButton: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 6,
@@ -388,15 +588,14 @@ const styles = StyleSheet.create({
   },
   micLabel: {
     fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 22,
-    letterSpacing: 0.3,
+    fontWeight: "500",
+    marginBottom: 16,
   },
   finishButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 14,
     borderWidth: 2.5,
@@ -412,8 +611,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   finishButtonText: {
-    fontSize: 17,
-    fontWeight: "700",
-    letterSpacing: 0.3,
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

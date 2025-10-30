@@ -30,11 +30,7 @@ import LoadingScreen from "./screens/LoadingScreen";
 import SummaryScreen from "./screens/SummaryScreen";
 import SuccessScreen from "./screens/SuccessScreen";
 import OnboardingScreen from "./screens/OnboardingScreen";
-import QuizScreen1 from "./screens/QuizScreen1";
-import QuizScreen2 from "./screens/QuizScreen2";
-import QuizScreen3 from "./screens/QuizScreen3";
-import QuizScreen4 from "./screens/QuizScreen4";
-import QuizScreen5 from "./screens/QuizScreen5";
+import QuizScreen from "./screens/QuizScreen";
 import TabBar from "./components/TabBar";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 
@@ -43,7 +39,9 @@ function MainApp() {
 
   // stack navigation state
   const [screen, setScreen] = useState("loading");
-  const [previousScreen, setPreviousScreen] = useState("loading");
+  
+  // Navigation history stack - ONLY CHANGE FOR NAVIGATION FIX
+  const [navigationHistory, setNavigationHistory] = useState(["loading"]);
 
   // Signup data state
   const [signupData, setSignupData] = useState({});
@@ -73,14 +71,16 @@ function MainApp() {
         // Existing user is signed in, navigate to home
         if (screen === "loading") {
           setTimeout(() => {
-            navigateWithAnimation("home");
+            setNavigationHistory(["home"]);
+            navigateWithAnimation("home", "fade", false);
           }, 1500);
         }
       } else if (!user) {
         // User is signed out, navigate to onboarding
         if (screen === "loading") {
           setTimeout(() => {
-            navigateWithAnimation("onboarding");
+            setNavigationHistory(["onboarding"]);
+            navigateWithAnimation("onboarding", "fade", false);
           }, 1500);
         }
       }
@@ -93,20 +93,22 @@ function MainApp() {
   useEffect(() => {
     if (screen === "loading" && !loading && !currentUser) {
       const timer = setTimeout(() => {
-        navigateWithAnimation("onboarding");
+        setNavigationHistory(["onboarding"]);
+        navigateWithAnimation("onboarding", "fade", false);
       }, 1500);
       return () => clearTimeout(timer);
     }
   }, [screen, loading, currentUser]);
 
-  // Animated navigation function
-  const navigateWithAnimation = (targetScreen, animationType = "fade") => {
-    setPreviousScreen(screen);
-
+  // Animated navigation function - UPDATED TO TRACK HISTORY
+  const navigateWithAnimation = (targetScreen, animationType = "fade", addToHistory = true) => {
     if (animationType === "modal") {
       // Slide from bottom for modal-like screens
       slideAnim.setValue(1000);
       setScreen(targetScreen);
+      if (addToHistory) {
+        setNavigationHistory([...navigationHistory, targetScreen]);
+      }
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
@@ -121,6 +123,9 @@ function MainApp() {
         useNativeDriver: true,
       }).start(() => {
         setScreen(targetScreen);
+        if (addToHistory) {
+          setNavigationHistory([...navigationHistory, targetScreen]);
+        }
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 200,
@@ -130,8 +135,20 @@ function MainApp() {
     }
   };
 
+  // UPDATED: goBack now uses navigation history
   const goBack = () => {
-    navigateWithAnimation(previousScreen);
+    if (navigationHistory.length > 1) {
+      const newHistory = [...navigationHistory];
+      newHistory.pop(); // Remove current screen
+      const previousScreen = newHistory[newHistory.length - 1];
+      
+      setNavigationHistory(newHistory);
+      navigateWithAnimation(previousScreen, "fade", false);
+    } else {
+      // Fallback to home if no history
+      setNavigationHistory(["home"]);
+      navigateWithAnimation("home", "fade", false);
+    }
   };
 
   const handleGetStarted = () => {
@@ -155,34 +172,43 @@ function MainApp() {
   const handleSignupStep3Next = async (data) => {
     const fullSignupData = { ...signupData, ...data };
     setSignupData(fullSignupData);
-
-    // Mark as new signup to prevent auto-navigation to home
     setIsNewSignup(true);
 
-    // Create Firebase account
     const result = await signUp(fullSignupData.email, fullSignupData.password);
 
     if (result.success) {
-      // Save user profile to Firestore
       await saveUserProfile(result.user.uid, {
         name: fullSignupData.name,
         email: fullSignupData.email,
         createdAt: new Date().toISOString(),
       });
 
-      // Navigate to quiz
-      navigateWithAnimation("quiz1");
+      // Navigate to quiz - clear history
+      setNavigationHistory(["quiz"]);
+      navigateWithAnimation("quiz", "fade", false);
     } else {
       Alert.alert("Signup Error", result.error);
       setIsNewSignup(false);
     }
   };
 
+  const handleQuizComplete = async (quizData) => {
+    if (currentUser) {
+      await saveQuizData(currentUser.uid, quizData);
+    }
+    setIsNewSignup(false);
+    // Clear history and go to home
+    setNavigationHistory(["home"]);
+    navigateWithAnimation("home", "fade", false);
+  };
+
   const handleSignIn = async (email, password) => {
     const result = await signIn(email, password);
 
     if (result.success) {
-      navigateWithAnimation("home");
+      // Clear history on sign in
+      setNavigationHistory(["home"]);
+      navigateWithAnimation("home", "fade", false);
     } else {
       Alert.alert("Sign In Error", result.error);
     }
@@ -246,7 +272,9 @@ function MainApp() {
   };
 
   const navigateToHome = () => {
-    navigateWithAnimation("home");
+    // Clear history when going to home
+    setNavigationHistory(["home"]);
+    navigateWithAnimation("home", "fade", false);
   };
 
   const navigateToSuccess = async (noteText) => {
@@ -281,6 +309,7 @@ function MainApp() {
   }
 
   // Home screen (Dashboard) with Tabs
+  // KEEPING YOUR ORIGINAL - NO onLogout PROP
   if (screen === "home") {
     return (
       <View
@@ -334,7 +363,7 @@ function MainApp() {
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <NoteScreen onBack={navigateToHome} onFinish={navigateToSuccess} />
+            <NoteScreen onBack={goBack} onFinish={navigateToSuccess} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -351,7 +380,7 @@ function MainApp() {
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <ProfileScreen onBack={navigateToHome} currentUser={currentUser} />
+            <ProfileScreen onBack={goBack} currentUser={currentUser} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -368,7 +397,12 @@ function MainApp() {
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <SuccessScreen onComplete={navigateToHome} />
+            <SuccessScreen 
+              onComplete={() => {
+                setActiveTab("home"); // Reset to notes tab
+                navigateToHome();
+              }} 
+            />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -385,7 +419,7 @@ function MainApp() {
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <SummaryScreen onBack={navigateToHome} />
+            <SummaryScreen onBack={goBack} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -483,85 +517,33 @@ function MainApp() {
     );
   }
 
-  // Quiz Step 1
-  if (screen === "quiz1") {
+  // Quiz screen - UPDATED WITH CONFIRMATION DIALOG
+  if (screen === "quiz") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View
-          style={[styles.animatedContainer, { opacity: fadeAnim }]}
-        >
-          <SafeAreaView
-            style={[styles.safeArea, { backgroundColor: theme.background }]}
-          >
-            <QuizScreen1 onBack={goBack} onNext={handleQuizStep1Next} />
-          </SafeAreaView>
-        </Animated.View>
-      </View>
-    );
-  }
-
-  // Quiz Step 2
-  if (screen === "quiz2") {
-    return (
-      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View
-          style={[styles.animatedContainer, { opacity: fadeAnim }]}
-        >
-          <SafeAreaView
-            style={[styles.safeArea, { backgroundColor: theme.background }]}
-          >
-            <QuizScreen2 onBack={goBack} onNext={handleQuizStep2Next} />
-          </SafeAreaView>
-        </Animated.View>
-      </View>
-    );
-  }
-
-  // Quiz Step 3
-  if (screen === "quiz3") {
-    return (
-      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View
-          style={[styles.animatedContainer, { opacity: fadeAnim }]}
-        >
-          <SafeAreaView
-            style={[styles.safeArea, { backgroundColor: theme.background }]}
-          >
-            <QuizScreen3 onBack={goBack} onNext={handleQuizStep3Next} />
-          </SafeAreaView>
-        </Animated.View>
-      </View>
-    );
-  }
-
-  // Quiz Step 4
-  if (screen === "quiz4") {
-    return (
-      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View
-          style={[styles.animatedContainer, { opacity: fadeAnim }]}
-        >
-          <SafeAreaView
-            style={[styles.safeArea, { backgroundColor: theme.background }]}
-          >
-            <QuizScreen4 onBack={goBack} onNext={handleQuizStep4Next} />
-          </SafeAreaView>
-        </Animated.View>
-      </View>
-    );
-  }
-
-  // Quiz Step 5
-  if (screen === "quiz5") {
-    return (
-      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View
-          style={[styles.animatedContainer, { opacity: fadeAnim }]}
-        >
-          <SafeAreaView
-            style={[styles.safeArea, { backgroundColor: theme.background }]}
-          >
-            <QuizScreen5 onBack={goBack} onNext={handleQuizStep5Next} />
+        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+          <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+            <QuizScreen 
+              onNext={handleQuizComplete} 
+              onBack={() => {
+                Alert.alert(
+                  "Cancel Signup?",
+                  "Going back will cancel your signup. Are you sure?",
+                  [
+                    { text: "Stay", style: "cancel" },
+                    { 
+                      text: "Cancel Signup", 
+                      style: "destructive",
+                      onPress: () => {
+                        setIsNewSignup(false);
+                        setNavigationHistory(["onboarding"]);
+                        navigateWithAnimation("onboarding", "fade", false);
+                      }
+                    }
+                  ]
+                );
+              }} 
+            />
           </SafeAreaView>
         </Animated.View>
       </View>
