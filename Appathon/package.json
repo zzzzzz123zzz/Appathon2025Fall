@@ -9,13 +9,14 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "add": "^2.0.6",
+    "@react-native-async-storage/async-storage": "^1.24.0",
     "expo": "~54.0.20",
+    "expo-image-picker": "^17.0.8",
     "expo-status-bar": "~3.0.8",
+    "firebase": "^12.4.0",
     "react": "19.1.0",
     "react-native": "0.81.5",
-    "react-native-safe-area-context": "^5.6.1",
-    "yarn": "^1.22.22"
+    "react-native-safe-area-context": "~5.6.0"
   },
   "private": true
 }
