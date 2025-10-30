@@ -89,7 +89,8 @@ export default function ProfileScreen({ onBack, currentUser }) {
           setProfileImage(uploadResult.url);
           Alert.alert('Success', 'Profile picture updated!');
         } else {
-          Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
+          console.error('Upload failed with error:', uploadResult.error);
+          Alert.alert('Upload Failed', uploadResult.error || 'Failed to upload image. Please try again.');
         }
       }
     } catch (error) {
