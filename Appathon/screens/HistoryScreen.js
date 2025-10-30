@@ -5,17 +5,63 @@ import {
   TextInput,
   TouchableOpacity,
   Animated,
+  ScrollView,
+  ActivityIndicator,
 } from "react-native";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import SettingsDrawer from "../components/SettingsDrawer";
+import { getUserNotes } from "../services/firestoreService";
+import { getUserProfile } from "../services/firestoreService";
 
-export default function HistoryScreen({ onCreateNote, onViewSummary, onStartChat, onEditProfile }) {
+export default function HistoryScreen({
+  onCreateNote,
+  onViewSummary,
+  onStartChat,
+  onEditProfile,
+  currentUser,
+}) {
   const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState("User");
   const micButtonScale = useRef(new Animated.Value(1)).current;
+
+  // Fetch user profile and notes
+  useEffect(() => {
+    if (currentUser) {
+      loadUserData();
+    }
+  }, [currentUser]);
+
+  const loadUserData = async () => {
+    if (!currentUser) return;
+
+    try {
+      // Get user profile
+      const profileResult = await getUserProfile(currentUser.uid);
+      if (profileResult.success && profileResult.data.name) {
+        setUserName(profileResult.data.name);
+      }
+
+      // Get notes
+      const notesResult = await getUserNotes(currentUser.uid);
+      if (notesResult.success) {
+        setNotes(notesResult.data);
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredNotes = notes.filter(note =>
+    note.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const hour = new Date().getHours();
   const greeting =
@@ -51,7 +97,7 @@ export default function HistoryScreen({ onCreateNote, onViewSummary, onStartChat
             ellipsizeMode="tail"
             style={[styles.username, { color: theme.primary }]}
           >
-            Theodore 👋
+            {userName} 👋
           </Text>
         </View>
 
@@ -60,10 +106,7 @@ export default function HistoryScreen({ onCreateNote, onViewSummary, onStartChat
           style={styles.profilePictureButton}
         >
           <View
-            style={[
-              styles.profilePicture,
-              { backgroundColor: theme.primary },
-            ]}
+            style={[styles.profilePicture, { backgroundColor: theme.primary }]}
           >
             <Ionicons name="person" size={24} color="#FFFFFF" />
           </View>
@@ -121,9 +164,39 @@ export default function HistoryScreen({ onCreateNote, onViewSummary, onStartChat
         </TouchableOpacity>
       </View>
 
-      <Text style={[styles.description, { color: theme.text }]}>
-        Your journal entries will appear here
-      </Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+        </View>
+      ) : notes.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={[styles.description, { color: theme.text }]}>
+            Your journal entries will appear here
+          </Text>
+        </View>
+      ) : (
+        <ScrollView style={styles.notesContainer} showsVerticalScrollIndicator={false}>
+          {filteredNotes.map((note) => (
+            <View
+              key={note.id}
+              style={[
+                styles.noteCard,
+                {
+                  backgroundColor: theme.cardBackground,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Text style={[styles.noteContent, { color: theme.text }]} numberOfLines={3}>
+                {note.content}
+              </Text>
+              <Text style={[styles.noteDate, { color: theme.textSecondary }]}>
+                {note.createdAt?.toDate?.()?.toLocaleDateString() || 'Recent'}
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
+      )}
 
       <View style={styles.micButtonContainer}>
         <Animated.View style={{ transform: [{ scale: micButtonScale }] }}>
@@ -240,12 +313,12 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: "#fff",
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.3,
+    shadowOpacity: 1,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -253,5 +326,33 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "500",
     marginTop: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  notesContainer: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  noteCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  noteContent: {
+    fontSize: 16,
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  noteDate: {
+    fontSize: 12,
   },
 });
