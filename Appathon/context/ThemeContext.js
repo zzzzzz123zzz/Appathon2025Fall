@@ -33,14 +33,15 @@ export const ThemeProvider = ({ children }) => {
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeMode] = useState("auto"); // "auto", "light", "dark"
 
-  const isDarkMode = themeMode === "auto"
-    ? systemColorScheme === "dark"
-    : themeMode === "dark";
+  const isDarkMode =
+    themeMode === "auto" ? systemColorScheme === "dark" : themeMode === "dark";
 
   const theme = isDarkMode ? darkTheme : lightTheme;
 
   return (
-    <ThemeContext.Provider value={{ theme, isDarkMode, themeMode, setThemeMode }}>
+    <ThemeContext.Provider
+      value={{ theme, isDarkMode, themeMode, setThemeMode }}
+    >
       {children}
     </ThemeContext.Provider>
   );

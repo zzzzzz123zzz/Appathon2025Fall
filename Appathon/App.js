@@ -4,13 +4,18 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Animated,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { Ionicons } from "@expo/vector-icons";
 import { signUp, signIn, onAuthStateChange } from "./services/authService";
-import { saveUserProfile, saveQuizData, createNote } from "./services/firestoreService";
+import {
+  saveUserProfile,
+  saveQuizData,
+  createNote,
+} from "./services/firestoreService";
 
 import SignupScreen1 from "./screens/SignupScreen1";
 import SignupScreen2 from "./screens/SignupScreen2";
@@ -52,7 +57,7 @@ function MainApp() {
   const [isNewSignup, setIsNewSignup] = useState(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState("home");
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -162,7 +167,7 @@ function MainApp() {
       await saveUserProfile(result.user.uid, {
         name: fullSignupData.name,
         email: fullSignupData.email,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       });
 
       // Navigate to quiz
@@ -229,7 +234,7 @@ function MainApp() {
   };
 
   const navigateToChat = () => {
-    setActiveTab('chat');
+    setActiveTab("chat");
   };
 
   const navigateToProfile = () => {
@@ -249,7 +254,7 @@ function MainApp() {
     if (currentUser) {
       const result = await createNote(currentUser.uid, {
         content: noteText,
-        mood: 'neutral', // You can enhance this later with mood detection
+        mood: "neutral", // You can enhance this later with mood detection
       });
 
       if (result.success) {
@@ -278,14 +283,20 @@ function MainApp() {
   // Home screen (Dashboard) with Tabs
   if (screen === "home") {
     return (
-      <View style={[styles.screenWrapper, { backgroundColor: theme.cardBackground }]}>
+      <View
+        style={[
+          styles.screenWrapper,
+          { backgroundColor: theme.cardBackground },
+        ]}
+      >
         <Animated.View
           style={[styles.animatedContainer, { opacity: fadeAnim }]}
         >
           <SafeAreaView
-            style={[styles.safeArea, { backgroundColor: theme.cardBackground }]}
+            edges={["top", "left", "right"]}
+            style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            {activeTab === 'home' ? (
+            {activeTab === "home" ? (
               <HistoryScreen
                 onCreateNote={navigateToNote}
                 onViewSummary={navigateToSummary}
@@ -294,9 +305,19 @@ function MainApp() {
                 currentUser={currentUser}
               />
             ) : (
-              <ChatScreen onBack={() => setActiveTab('home')} onFinish={navigateToSuccess} />
+              <ChatScreen
+                onBack={() => setActiveTab("home")}
+                onFinish={navigateToSuccess}
+              />
             )}
-            <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+
+            {/* 👇 Wrap tab bar in its own SafeAreaView so bottom area matches */}
+            <SafeAreaView
+              edges={["bottom"]}
+              style={{ backgroundColor: theme.cardBackground }}
+            >
+              <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+            </SafeAreaView>
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -319,7 +340,6 @@ function MainApp() {
       </View>
     );
   }
-
 
   // Profile screen
   if (screen === "profile") {
@@ -376,7 +396,9 @@ function MainApp() {
   if (screen === "onboarding") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
@@ -394,7 +416,9 @@ function MainApp() {
   if (screen === "signin") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
@@ -412,14 +436,13 @@ function MainApp() {
   if (screen === "signup1") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <SignupScreen1
-              onBack={goBack}
-              onNext={handleSignupStep1Next}
-            />
+            <SignupScreen1 onBack={goBack} onNext={handleSignupStep1Next} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -430,14 +453,13 @@ function MainApp() {
   if (screen === "signup2") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <SignupScreen2
-              onBack={goBack}
-              onNext={handleSignupStep2Next}
-            />
+            <SignupScreen2 onBack={goBack} onNext={handleSignupStep2Next} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -448,14 +470,13 @@ function MainApp() {
   if (screen === "signup3") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <SignupScreen3
-              onBack={goBack}
-              onNext={handleSignupStep3Next}
-            />
+            <SignupScreen3 onBack={goBack} onNext={handleSignupStep3Next} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -466,14 +487,13 @@ function MainApp() {
   if (screen === "quiz1") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <QuizScreen1
-              onBack={goBack}
-              onNext={handleQuizStep1Next}
-            />
+            <QuizScreen1 onBack={goBack} onNext={handleQuizStep1Next} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -484,14 +504,13 @@ function MainApp() {
   if (screen === "quiz2") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <QuizScreen2
-              onBack={goBack}
-              onNext={handleQuizStep2Next}
-            />
+            <QuizScreen2 onBack={goBack} onNext={handleQuizStep2Next} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -502,14 +521,13 @@ function MainApp() {
   if (screen === "quiz3") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <QuizScreen3
-              onBack={goBack}
-              onNext={handleQuizStep3Next}
-            />
+            <QuizScreen3 onBack={goBack} onNext={handleQuizStep3Next} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -520,14 +538,13 @@ function MainApp() {
   if (screen === "quiz4") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <QuizScreen4
-              onBack={goBack}
-              onNext={handleQuizStep4Next}
-            />
+            <QuizScreen4 onBack={goBack} onNext={handleQuizStep4Next} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -538,14 +555,13 @@ function MainApp() {
   if (screen === "quiz5") {
     return (
       <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
-        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <QuizScreen5
-              onBack={goBack}
-              onNext={handleQuizStep5Next}
-            />
+            <QuizScreen5 onBack={goBack} onNext={handleQuizStep5Next} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -559,7 +575,9 @@ function MainApp() {
         <SafeAreaView
           style={[styles.safeArea, { backgroundColor: theme.background }]}
         >
-          <View style={[styles.container, { backgroundColor: theme.background }]} />
+          <View
+            style={[styles.container, { backgroundColor: theme.background }]}
+          />
         </SafeAreaView>
       </Animated.View>
     </View>
