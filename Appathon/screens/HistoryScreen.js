@@ -66,7 +66,7 @@ export default function HistoryScreen({
     }
   };
 
-  const filteredNotes = notes.filter(note =>
+  const filteredNotes = notes.filter((note) =>
     note.content.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -93,8 +93,10 @@ export default function HistoryScreen({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.cardBackground }]}>
-      <View style={[styles.headerSection, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View
+        style={[styles.headerSection, { backgroundColor: theme.background }]}
+      >
         <View style={styles.headerRow}>
           <View>
             <Text style={[styles.greeting, { color: theme.textSecondary }]}>
@@ -114,7 +116,10 @@ export default function HistoryScreen({
             style={styles.profilePictureButton}
           >
             <View
-              style={[styles.profilePicture, { backgroundColor: theme.primary }]}
+              style={[
+                styles.profilePicture,
+                { backgroundColor: theme.primary },
+              ]}
             >
               {profileImage ? (
                 <Image
@@ -131,7 +136,10 @@ export default function HistoryScreen({
         <View
           style={[
             styles.searchContainer,
-            { backgroundColor: theme.cardBackground, borderColor: theme.border },
+            {
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            },
           ]}
         >
           <Ionicons
@@ -163,8 +171,14 @@ export default function HistoryScreen({
             style={[styles.secondaryButton, { borderColor: theme.primary }]}
             onPress={onCreateNote}
           >
-            <Ionicons name="add-circle-outline" size={22} color={theme.primary} />
-            <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>
+            <Ionicons
+              name="add-circle-outline"
+              size={22}
+              color={theme.primary}
+            />
+            <Text
+              style={[styles.secondaryButtonText, { color: theme.primary }]}
+            >
               New Entry
             </Text>
           </TouchableOpacity>
@@ -173,8 +187,14 @@ export default function HistoryScreen({
             style={[styles.secondaryButton, { borderColor: theme.primary }]}
             onPress={onViewSummary}
           >
-            <Ionicons name="bar-chart-outline" size={22} color={theme.primary} />
-            <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>
+            <Ionicons
+              name="bar-chart-outline"
+              size={22}
+              color={theme.primary}
+            />
+            <Text
+              style={[styles.secondaryButtonText, { color: theme.primary }]}
+            >
               Summary
             </Text>
           </TouchableOpacity>
@@ -182,7 +202,9 @@ export default function HistoryScreen({
       </View>
 
       {/* Notes Section - Extends to bottom with background */}
-      <View style={[styles.notesSection, { backgroundColor: theme.cardBackground }]}>
+      <View
+        style={[styles.notesSection, { backgroundColor: theme.background }]}
+      >
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.primary} />
@@ -211,15 +233,26 @@ export default function HistoryScreen({
                 ]}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.noteContent, { color: theme.text }]} numberOfLines={4}>
+                <Text
+                  style={[styles.noteContent, { color: theme.text }]}
+                  numberOfLines={4}
+                >
                   {note.content}
                 </Text>
                 <View style={styles.noteFooter}>
-                  <Text style={[styles.noteDate, { color: theme.textSecondary }]}>
-                    {note.createdAt?.toDate?.()?.toLocaleDateString() || 'Recent'}
+                  <Text
+                    style={[styles.noteDate, { color: theme.textSecondary }]}
+                  >
+                    {note.createdAt?.toDate?.()?.toLocaleDateString() ||
+                      "Recent"}
                   </Text>
                   {note.mood && (
-                    <View style={[styles.moodBadge, { backgroundColor: theme.primary + '20' }]}>
+                    <View
+                      style={[
+                        styles.moodBadge,
+                        { backgroundColor: theme.primary + "20" },
+                      ]}
+                    >
                       <Text style={[styles.moodText, { color: theme.primary }]}>
                         {note.mood}
                       </Text>
@@ -267,7 +300,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'transparent',
+    borderBottomColor: "transparent",
   },
   headerRow: {
     flexDirection: "row",
@@ -284,7 +317,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   profileImage: {
     width: 44,

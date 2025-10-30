@@ -13,12 +13,18 @@ import {
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from "expo-image-picker";
 import { useTheme } from "../context/ThemeContext";
 import { getUserProfile, saveUserProfile } from "../services/firestoreService";
 import { logOut } from "../services/authService";
 
-export default function SettingsDrawer({ visible, onClose, onEditProfile, currentUser, onSignOut }) {
+export default function SettingsDrawer({
+  visible,
+  onClose,
+  onEditProfile,
+  currentUser,
+  onSignOut,
+}) {
   const { theme, isDarkMode, themeMode, setThemeMode } = useTheme();
   const slideAnim = useRef(new Animated.Value(-320)).current;
   const [reminderFrequency, setReminderFrequency] = useState(2); // times per day
@@ -52,33 +58,28 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile, curren
     }
   };
 
-
   const handleSignOut = async () => {
-    Alert.alert(
-      "Sign Out",
-      "Are you sure you want to sign out?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Sign Out",
-          style: "destructive",
-          onPress: async () => {
-            const result = await logOut();
-            if (result.success) {
-              onClose();
-              if (onSignOut) {
-                onSignOut();
-              }
-            } else {
-              Alert.alert("Error", "Failed to sign out. Please try again.");
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: async () => {
+          const result = await logOut();
+          if (result.success) {
+            onClose();
+            if (onSignOut) {
+              onSignOut();
             }
+          } else {
+            Alert.alert("Error", "Failed to sign out. Please try again.");
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   useEffect(() => {
@@ -258,7 +259,7 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile, curren
                 { backgroundColor: theme.cardBackground },
               ]}
             >
-              <SettingRow
+              {/* <SettingRow
                 icon="lock-closed-outline"
                 title="Privacy & Security"
                 rightComponent={
@@ -279,18 +280,7 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile, curren
                     color={theme.textSecondary}
                   />
                 }
-              />
-              <SettingRow
-                icon="help-circle-outline"
-                title="Help & Support"
-                rightComponent={
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={theme.textSecondary}
-                  />
-                }
-              />
+              /> */}
               <SettingRow
                 icon="information-circle-outline"
                 title="About"
@@ -302,22 +292,13 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile, curren
                   </Text>
                 }
               />
-            </View>
-
-            {/* Sign Out Button */}
-            <View style={[styles.section, { marginTop: 8 }]}>
-              <TouchableOpacity
-                style={[
-                  styles.signOutButton,
-                  { backgroundColor: theme.cardBackground, borderColor: '#FF6B6B' }
-                ]}
+              <SettingRow
+                icon="log-out-outline"
+                title="Log Out"
                 onPress={handleSignOut}
               >
-                <Ionicons name="log-out-outline" size={22} color="#FF6B6B" />
-                <Text style={[styles.signOutText, { color: '#FF6B6B' }]}>
-                  Sign Out
-                </Text>
-              </TouchableOpacity>
+                t
+              </SettingRow>
             </View>
 
             <View style={styles.bottomPadding} />
@@ -406,8 +387,8 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     justifyContent: "center",
     alignItems: "center",
-    overflow: 'hidden',
-    position: 'relative',
+    overflow: "hidden",
+    position: "relative",
   },
   avatarImage: {
     width: 64,
