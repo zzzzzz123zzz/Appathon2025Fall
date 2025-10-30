@@ -5,23 +5,17 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
-  Alert,
   ActivityIndicator,
-  Image,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from "../context/ThemeContext";
-import { getUserProfile, saveUserProfile } from "../services/firestoreService";
-import { uploadProfileImage } from "../services/storageService";
+import { getUserProfile } from "../services/firestoreService";
 
 export default function ProfileScreen({ onBack, currentUser }) {
   const { theme } = useTheme();
   const [profileName, setProfileName] = useState("");
-  const [profileImage, setProfileImage] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [reminderFrequency, setReminderFrequency] = useState(2); // times per day
 
@@ -36,13 +30,8 @@ export default function ProfileScreen({ onBack, currentUser }) {
 
     try {
       const result = await getUserProfile(currentUser.uid);
-      if (result.success) {
-        if (result.data.name) {
-          setProfileName(result.data.name);
-        }
-        if (result.data.profileImage) {
-          setProfileImage(result.data.profileImage);
-        }
+      if (result.success && result.data.name) {
+        setProfileName(result.data.name);
       }
     } catch (error) {
       console.error("Error loading profile:", error);
@@ -51,54 +40,15 @@ export default function ProfileScreen({ onBack, currentUser }) {
     }
   };
 
-  const handleChangeProfilePicture = async () => {
-    try {
-      // Request permission
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Please grant camera roll permissions to change your profile picture.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      // Launch image picker
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.5,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setUploadingImage(true);
-        const imageUri = result.assets[0].uri;
-
-        // Upload to Firebase Storage
-        const uploadResult = await uploadProfileImage(currentUser.uid, imageUri);
-
-        if (uploadResult.success) {
-          // Save the download URL to Firestore
-          await saveUserProfile(currentUser.uid, {
-            profileImage: uploadResult.url,
-          });
-
-          setProfileImage(uploadResult.url);
-          Alert.alert('Success', 'Profile picture updated!');
-        } else {
-          console.error('Upload failed with error:', uploadResult.error);
-          Alert.alert('Upload Failed', uploadResult.error || 'Failed to upload image. Please try again.');
-        }
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to update profile picture');
-    } finally {
-      setUploadingImage(false);
+  // Get user's first initial
+  const getInitial = () => {
+    if (profileName && profileName.length > 0) {
+      return profileName.charAt(0).toUpperCase();
     }
+    if (currentUser && currentUser.email) {
+      return currentUser.email.charAt(0).toUpperCase();
+    }
+    return "U";
   };
 
   return (
@@ -117,39 +67,13 @@ export default function ProfileScreen({ onBack, currentUser }) {
       <ScrollView style={styles.content}>
         {/* Profile Picture Section */}
         <View style={styles.profileSection}>
-          <View style={styles.profilePictureWrapper}>
-            <View
-              style={[
-                styles.profilePictureContainer,
-                { backgroundColor: theme.primary },
-              ]}
-            >
-              {profileImage ? (
-                <Image
-                  source={{ uri: profileImage }}
-                  style={styles.profileImage}
-                />
-              ) : (
-                <Ionicons name="person" size={60} color="#FFFFFF" />
-              )}
-              {uploadingImage && (
-                <View style={styles.uploadingOverlay}>
-                  <ActivityIndicator size="large" color="#FFFFFF" />
-                </View>
-              )}
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.editIconButton,
-                { backgroundColor: theme.primary },
-              ]}
-              onPress={handleChangeProfilePicture}
-              activeOpacity={0.7}
-              disabled={uploadingImage}
-            >
-              <Ionicons name="camera" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
+          <View
+            style={[
+              styles.profilePictureContainer,
+              { backgroundColor: theme.primary },
+            ]}
+          >
+            <Text style={styles.initialText}>{getInitial()}</Text>
           </View>
         </View>
 
@@ -341,17 +265,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 32,
   },
-  profilePictureWrapper: {
-    position: "relative",
-    marginBottom: 20,
-  },
   profilePictureContainer: {
     width: 120,
     height: 120,
     borderRadius: 60,
     justifyContent: "center",
     alignItems: "center",
-    overflow: 'hidden',
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -361,39 +280,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  profileImage: {
-    width: 120,
-    height: 120,
-  },
-  uploadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  editIconButton: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+  initialText: {
+    fontSize: 48,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
   section: {
     paddingHorizontal: 24,

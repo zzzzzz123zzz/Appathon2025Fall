@@ -7,10 +7,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  Alert,
 } from "react-native";
 import { useState, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 
 export default function ChatScreen({ onBack, onFinish }) {
   const { theme } = useTheme();
@@ -22,9 +24,17 @@ export default function ChatScreen({ onBack, onFinish }) {
       timestamp: new Date(),
     },
   ]);
-  const [isRecording, setIsRecording] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const messageOpacity = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef(null);
+
+  // Speech recognition hook
+  const {
+    isRecording,
+    isTranscribing,
+    startRecording,
+    recordAndTranscribe,
+  } = useSpeechRecognition();
 
   // Pulse animation when recording
   useEffect(() => {
@@ -58,33 +68,74 @@ export default function ChatScreen({ onBack, onFinish }) {
     }).start();
   }, [messages.length]);
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    // TODO: Start actual voice recording
+  const handleStartRecording = async () => {
+    try {
+      await startRecording();
+    } catch (error) {
+      console.error("Error starting recording:", error);
+      Alert.alert(
+        "Recording Error",
+        "Could not start recording. Please check microphone permissions.",
+        [{ text: "OK" }]
+      );
+    }
   };
 
-  const handleStopRecording = () => {
-    setIsRecording(false);
-    // TODO: Stop recording and process speech
-    // For now, add a dummy user message
-    const newMessage = {
-      id: messages.length + 1,
-      text: "This is where your voice message will appear...",
-      sender: "user",
-      timestamp: new Date(),
-    };
-    setMessages([...messages, newMessage]);
+  const handleStopRecording = async () => {
+    try {
+      // Stop recording and get transcription
+      const transcription = await recordAndTranscribe();
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = {
-        id: messages.length + 2,
-        text: "I understand. Can you tell me more about that?",
-        sender: "ai",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiResponse]);
-    }, 1000);
+      if (transcription) {
+        // Add user message with transcription
+        const newMessage = {
+          id: messages.length + 1,
+          text: transcription,
+          sender: "user",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, newMessage]);
+
+        // Scroll to bottom
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+
+        // Simulate AI response (replace with actual AI integration)
+        setTimeout(() => {
+          const aiResponses = [
+            "I understand. Can you tell me more about that?",
+            "Thank you for sharing. How does that make you feel?",
+            "I hear you. What do you think is contributing to these feelings?",
+            "That's important. Have you noticed any patterns?",
+            "I appreciate you opening up. What would help you feel better?",
+          ];
+
+          const randomResponse =
+            aiResponses[Math.floor(Math.random() * aiResponses.length)];
+
+          const aiResponse = {
+            id: messages.length + 2,
+            text: randomResponse,
+            sender: "ai",
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, aiResponse]);
+
+          // Scroll to bottom for AI response
+          setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Error stopping recording:", error);
+      Alert.alert(
+        "Transcription Error",
+        "Could not process your message. Please try again.",
+        [{ text: "OK" }]
+      );
+    }
   };
 
   const handleFinishSession = () => {
@@ -127,6 +178,7 @@ export default function ChatScreen({ onBack, onFinish }) {
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
       >
@@ -158,6 +210,23 @@ export default function ChatScreen({ onBack, onFinish }) {
             </Text>
           </View>
         ))}
+
+        {isTranscribing && (
+          <View
+            style={[
+              styles.messageBubble,
+              styles.aiMessage,
+              {
+                backgroundColor: theme.cardBackground,
+                borderColor: theme.border,
+              },
+            ]}
+          >
+            <Text style={[styles.messageText, { color: theme.textSecondary }]}>
+              Transcribing...
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       <View
@@ -172,11 +241,13 @@ export default function ChatScreen({ onBack, onFinish }) {
               styles.micButton,
               {
                 backgroundColor: isRecording ? "#EF4444" : theme.primary,
+                opacity: isTranscribing ? 0.5 : 1,
               },
             ]}
             onPressIn={handleStartRecording}
             onPressOut={handleStopRecording}
             activeOpacity={0.8}
+            disabled={isTranscribing}
           >
             <Ionicons
               name={isRecording ? "stop" : "mic"}
@@ -187,7 +258,11 @@ export default function ChatScreen({ onBack, onFinish }) {
         </Animated.View>
 
         <Text style={[styles.micLabel, { color: theme.textSecondary }]}>
-          {isRecording ? "Release to send" : "Hold to speak"}
+          {isTranscribing
+            ? "Processing..."
+            : isRecording
+            ? "Release to send"
+            : "Hold to speak"}
         </Text>
 
         <TouchableOpacity
