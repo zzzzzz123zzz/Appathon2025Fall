@@ -1,20 +1,3 @@
-<<<<<<< HEAD
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-
-export default function OnboardingScreen({ setScreen }) {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome!</Text>
-
-      <TouchableOpacity style={styles.button} onPress={() => setScreen("signup")}>
-        <Text style={styles.buttonText}>Sign Up</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.button} onPress={() => setScreen("login")}>
-        <Text style={styles.buttonText}>Log In</Text>
-      </TouchableOpacity>
-=======
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
@@ -66,18 +49,11 @@ export default function OnboardingScreen({ onGetStarted, onSignIn }) {
           </Text>
         </TouchableOpacity>
       </View>
->>>>>>> origin/main
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-<<<<<<< HEAD
-  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#005591" },
-  title: { color: "#fff", fontSize: 32, marginBottom: 50 },
-  button: { marginVertical: 10, padding: 15, backgroundColor: "#fff", borderRadius: 10, width: 200, alignItems: "center" },
-  buttonText: { color: "#005591", fontWeight: "700" },
-=======
   container: {
     flex: 1,
     paddingHorizontal: 30,
@@ -134,5 +110,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
->>>>>>> origin/main
 });
