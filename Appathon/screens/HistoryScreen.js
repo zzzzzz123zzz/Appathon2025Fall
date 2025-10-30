@@ -7,6 +7,7 @@ import {
   Animated,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { useState, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
