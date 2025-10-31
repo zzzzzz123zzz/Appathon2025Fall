@@ -17,6 +17,11 @@ import {
   createNote,
 } from "./services/firestoreService";
 import { processDiaryEntry } from "./services/diaryService";
+import {
+  registerForPushNotifications,
+  savePushToken,
+  setupNotificationListeners,
+} from "./services/notificationService";
 
 import SignupScreen1 from "./screens/SignupScreen1";
 import SignupScreen2 from "./screens/SignupScreen2";
@@ -89,6 +94,34 @@ function MainApp() {
 
     return () => unsubscribe();
   }, [isNewSignup]);
+
+  // Register for push notifications when user is logged in
+  useEffect(() => {
+    if (currentUser) {
+      // Register for push notifications
+      registerForPushNotifications().then((result) => {
+        if (result.success && result.token) {
+          // Save token to Firestore
+          savePushToken(currentUser.uid, result.token);
+        }
+      });
+
+      // Set up notification listeners
+      const cleanup = setupNotificationListeners(
+        (notification) => {
+          // Handle notification received while app is open
+          console.log("📨 Notification received:", notification);
+        },
+        (response) => {
+          // Handle user tapping on notification
+          console.log("👆 Notification tapped:", response);
+          // You can navigate to a specific screen based on notification data
+        }
+      );
+
+      return cleanup;
+    }
+  }, [currentUser]);
 
   // Auto-navigate from loading screen if no user
   useEffect(() => {

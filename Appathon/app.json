@@ -7,23 +7,41 @@
     "icon": "./assets/app.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "appathon",
     "splash": {
       "image": "./assets/app.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kuldeepdebnath.Appathon"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/app.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.kuldeepdebnath.Appathon"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "notification": {
+      "icon": "./assets/app.png",
+      "color": "#c1a57d",
+      "androidMode": "default",
+      "androidCollapsedTitle": "New notification from your doctor"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/app.png",
+          "color": "#c1a57d"
+        }
+      ]
+    ]
   }
 }
