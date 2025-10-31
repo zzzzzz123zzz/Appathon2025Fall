@@ -16,6 +16,7 @@ import {
   saveQuizData,
   createNote,
 } from "./services/firestoreService";
+import { processDiaryEntry } from "./services/diaryService";
 
 import SignupScreen1 from "./screens/SignupScreen1";
 import SignupScreen2 from "./screens/SignupScreen2";
@@ -277,19 +278,58 @@ function MainApp() {
     navigateWithAnimation("home", "fade", false);
   };
 
-  const navigateToSuccess = async (noteText) => {
-    // Save note to Firestore
+  const navigateToSuccess = async (noteText, isDiaryEntry = false, messages = []) => {
+    // Save entry to Firestore
     if (currentUser) {
-      const result = await createNote(currentUser.uid, {
-        content: noteText,
-        mood: "neutral", // You can enhance this later with mood detection
-      });
+      if (isDiaryEntry) {
+        console.log("🔵 Processing diary entry with AI extraction...");
+        console.log("🔵 User ID:", currentUser.uid);
+        console.log("🔵 Message count:", messages.length);
+        console.log("🔵 Content length:", noteText.length);
+        console.log("🔵 Entry type:", messages.length > 0 ? "Chat conversation" : "Text note");
 
-      if (result.success) {
-        console.log("Note saved successfully:", result.noteId);
+        // Process diary entry with AI extraction
+        // Works for both chat conversations and text notes
+        const result = await processDiaryEntry(
+          currentUser.uid,
+          noteText,
+          messages
+        );
+
+        console.log("🔵 Result:", result);
+
+        if (result.success) {
+          console.log("✅ Diary entry saved successfully:", result.entryId);
+          console.log("✅ Extracted health data:", result.extractedData);
+
+          const symptomsCount = result.extractedData?.symptoms?.length || 0;
+          const moodScore = result.extractedData?.moods?.score || 5;
+
+          Alert.alert(
+            "Success! 🎉",
+            `Entry saved with:\n• ${symptomsCount} symptom(s) detected\n• Mood: ${moodScore}/10\n• Type: ${messages.length > 0 ? 'Chat' : 'Note'}`
+          );
+        } else {
+          console.error("❌ Error saving diary entry:", result.error);
+          Alert.alert("Error", `Failed to save diary entry: ${result.error}`);
+        }
       } else {
-        console.error("Error saving note:", result.error);
+        // Legacy: Save as regular note (backward compatibility)
+        console.log("🟡 Saving as regular note (legacy mode)");
+        const result = await createNote(currentUser.uid, {
+          content: noteText,
+          mood: "neutral",
+        });
+
+        if (result.success) {
+          console.log("Note saved successfully:", result.noteId);
+        } else {
+          console.error("Error saving note:", result.error);
+        }
       }
+    } else {
+      console.error("❌ No current user found!");
+      Alert.alert("Error", "You must be logged in to save entries.");
     }
 
     navigateWithAnimation("success");
@@ -336,7 +376,9 @@ function MainApp() {
             ) : (
               <ChatScreen
                 onBack={() => setActiveTab("home")}
-                onFinish={navigateToSuccess}
+                onFinish={(conversationText, messages) =>
+                  navigateToSuccess(conversationText, true, messages)
+                }
               />
             )}
 
@@ -363,7 +405,10 @@ function MainApp() {
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <NoteScreen onBack={goBack} onFinish={navigateToSuccess} />
+            <NoteScreen
+              onBack={goBack}
+              onFinish={(noteText) => navigateToSuccess(noteText, true, [])}
+            />
           </SafeAreaView>
         </Animated.View>
       </View>

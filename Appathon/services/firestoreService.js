@@ -165,3 +165,60 @@ export const deleteNote = async (userId, noteId) => {
     return { success: false, error: error.message };
   }
 };
+
+// ===== DIARY ENTRIES WITH HEALTH EXTRACTION =====
+
+// Create a diary entry with extracted health data
+export const createDiaryEntry = async (userId, entryData) => {
+  try {
+    const diaryEntriesRef = collection(db, 'users', userId, 'diaryEntries');
+    const docRef = await addDoc(diaryEntriesRef, {
+      ...entryData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    return { success: true, entryId: docRef.id };
+  } catch (error) {
+    console.error('Error creating diary entry:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Get all diary entries for a user
+export const getDiaryEntries = async (userId, limitCount = 20) => {
+  try {
+    const diaryEntriesRef = collection(db, 'users', userId, 'diaryEntries');
+    const q = query(diaryEntriesRef, orderBy('createdAt', 'desc'), limit(limitCount));
+    const querySnapshot = await getDocs(q);
+
+    const entries = [];
+    querySnapshot.forEach((doc) => {
+      entries.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    return { success: true, data: entries };
+  } catch (error) {
+    console.error('Error getting diary entries:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};
+
+// Get a single diary entry
+export const getDiaryEntry = async (userId, entryId) => {
+  try {
+    const entryRef = doc(db, 'users', userId, 'diaryEntries', entryId);
+    const entrySnap = await getDoc(entryRef);
+
+    if (entrySnap.exists()) {
+      return { success: true, data: { id: entrySnap.id, ...entrySnap.data() } };
+    } else {
+      return { success: false, error: 'Diary entry not found' };
+    }
+  } catch (error) {
+    console.error('Error getting diary entry:', error);
+    return { success: false, error: error.message };
+  }
+};

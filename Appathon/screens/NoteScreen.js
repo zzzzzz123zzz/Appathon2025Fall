@@ -59,6 +59,9 @@ export default function NoteScreen({ onBack, onFinish }) {
   };
 
   const handleFinishEntry = () => {
+    console.log("📝 NoteScreen: handleFinishEntry called");
+    console.log("📝 Note text length:", noteText.length);
+    console.log("📝 This will be saved as a diary entry with AI extraction");
     if (onFinish) {
       onFinish(noteText);
     }

@@ -172,12 +172,20 @@ export default function ChatScreen({ onBack, onFinish }) {
   };
 
   const handleFinishSession = () => {
+    console.log("🟢 ChatScreen: handleFinishSession called");
+    console.log("🟢 Messages array:", messages);
+
     const conversationText = messages
       .map((msg) => `${msg.sender === "user" ? "Me" : "Assistant"}: ${msg.text}`)
       .join("\n\n");
 
+    console.log("🟢 Conversation text:", conversationText);
+
     if (onFinish) {
-      onFinish(conversationText);
+      console.log("🟢 Calling onFinish with", messages.length, "messages");
+      onFinish(conversationText, messages);
+    } else {
+      console.error("❌ onFinish callback is not defined!");
     }
   };
 
