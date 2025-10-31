@@ -1,253 +1,264 @@
 /**
- * Extract_Data.js - Data Extraction Module (Firebase Genkit Implementation)
- * 
- * PURPOSE: Extract structured health data from user diary entries
- * This module processes individual diary entries or conversations and extracts:
- * - Symptoms (with duration and severity)
- * - Mood and emotions
- * - Medications
- * - Other health challenges
- * 
- * TECHNOLOGY: Firebase Genkit with Google AI (Gemini)
- * MODEL: gemini-1.5-flash
- * 
- * OUTPUT: JSON object matching ExtractedHealthDataSchema
- * 
- * This is the FIRST STEP in the pipeline:
- * User Input → Extract_Data.js → Structured JSON → Firebase
+ * summary.js - Health Summary Generation Module
+ *
+ * PURPOSE: Generate health summaries from user diary entries
+ * This module creates:
+ * - Weekly health summaries
+ * - Monthly health trends
+ * - Custom period summaries
+ *
+ * TECHNOLOGY: Uses shared functions from app.js
+ * MODEL: gemini-1.5-flash (via app.js)
+ *
+ * OUTPUT: Human-readable summaries and structured health data
  */
 
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
-import { z } from 'zod';
+import { generateWeeklySummary, getRecentEntries, ExtractedHealthDataSchema } from './app.js';
 
 /**
- * Schema for extracted health data
- * This represents the structured format for storing user health information
+ * Generate a weekly summary for a user
+ * This is a wrapper around generateWeeklySummary from app.js
+ *
+ * @param {string} userId - User's ID
+ * @returns {Promise<Object>} Weekly summary with health data
  */
-const ExtractedHealthDataSchema = z.object({
-  symptoms: z
-    .array(
-      z.object({
-        name: z.string().describe("The name of the symptom (e.g., 'nausea', 'headache', 'fatigue')"),
-        duration: z.string().optional().describe("How long the symptom has lasted (e.g., '6 days', 'a few weeks')"),
-        degree: z.enum(['mild', 'moderate', 'severe', 'worsening', 'improving']).optional()
-          .describe("The severity or trend of the symptom"),
-      })
-    )
-    .describe("List of symptoms reported by the user"),
-
-  moods: z.object({
-    overall: z
-      .enum(['positive', 'neutral', 'negative'])
-      .describe("Overall emotional tone"),
-    score: z
-      .number()
-      .min(1)
-      .max(10)
-      .describe("Mood score (1 = very negative, 10 = very positive)"),
-    emotions: z
-      .array(z.string())
-      .describe("Specific emotions (e.g., 'happy', 'sad', 'anxious', 'stressed')"),
-  })
-  .describe("Emotional state and mood information"),
-
-  medications: z
-    .array(
-      z.object({
-        name: z.string().describe("Medication name (e.g., 'melatonin', 'Zoloft')"),
-        dosage: z.string().optional().describe("Dosage if mentioned (e.g., '1 mg', 'two tablets')"),
-        taken: z.boolean().optional().describe("Whether currently taking this medication"),
-        time: z.string().optional().describe("When taken (e.g., 'at night', 'in the morning')"),
-      })
-    )
-    .optional()
-    .default([])
-    .describe("Medications and supplements mentioned"),
-
-  otherHealthChallenges: z
-    .array(z.string())
-    .optional()
-    .default([])
-    .describe("Chronic conditions or ongoing health concerns not captured as symptoms"),
-});
-
-/**
- * Initialize Firebase Genkit with Google AI
- */
-const ai = genkit({
-  plugins: [
-    googleAI({
-      apiKey: process.env.GOOGLE_AI_API_KEY,
-    }),
-  ],
-  model: 'googleai/gemini-1.5-flash', // Default model
-});
-
-/**
- * Main extraction function using Firebase Genkit
- * 
- * @param {string} userId - The user's ID for database storage
- * @param {string[]} userMessages - Array of recent diary entry messages
- * @param {Object} options - Optional configuration
- * @returns {Promise<Object>} Extracted health data matching ExtractedHealthDataSchema
- */
-async function extractHealthData(userId, userMessages, options = {}) {
-  const {
-    timeframe = '7 days',
-    includeMetadata = true,
-  } = options;
-
-  // Format messages for the prompt
-  const messagesText = userMessages.map((msg, idx) => 
-    `Entry ${idx + 1}: ${msg}`
-  ).join('\n\n');
-
-  // Build the extraction prompt
-  const extractionPrompt = `
-Analyze these health diary entries from the past ${timeframe} and extract structured health information.
-
-DIARY ENTRIES:
-${messagesText}
-
-EXTRACTION RULES:
-
-1. **Symptoms**
-   - Extract symptom name (use common medical terms)
-   - Duration: ONLY if user mentions specific time (e.g., "3 days", "two weeks")
-   - Degree: Choose from: mild, moderate, severe, worsening, improving
-     * mild = slight, minor, small, light
-     * moderate = noticeable, somewhat, quite, "worse than usual" but not extreme
-     * severe = extreme, very bad, intense, unbearable
-     * worsening = "getting worse", "worse than before"
-     * improving = "getting better", "less than before"
-   - If duration or degree not mentioned, omit those fields
-
-2. **Moods**
-   - Overall: positive, neutral, or negative (based on tone across ALL entries)
-   - Score: 1-10 (1 = most negative, 10 = most positive)
-   - Emotions: list specific emotions mentioned or clearly inferred
-   - Avoid duplicates (use "anxious" not both "anxiety" and "anxious")
-
-3. **Medications**
-   - Name: medication or supplement name
-   - Dosage: only if explicitly stated
-   - Taken: 
-     * true = currently taking ("I take", "I'm taking")
-     * false = stopped taking ("I used to take", "I don't take anymore")
-     * omit if unclear
-   - Time: when taken if mentioned (morning, night, etc.)
-
-4. **Other Health Challenges**
-   - Chronic conditions (diabetes, asthma, etc.)
-   - Ongoing health management concerns
-   - Do NOT repeat symptoms already listed
-
-IMPORTANT:
-- Only extract what is explicitly stated
-- Use empty arrays [] for missing data
-- Return valid JSON matching the schema
-- No explanations or prose
-`;
-
+async function getWeeklySummary(userId) {
   try {
-    // Use Genkit's generate function with structured output
-    const result = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
-      config: {
-        temperature: 0.1, // Low temperature for consistent structured extraction
-        maxOutputTokens: 1024,
-      },
-      prompt: extractionPrompt,
-      output: {
-        format: 'json',
-        schema: ExtractedHealthDataSchema,
-      },
-    });
+    console.log(`📊 Generating weekly summary for user ${userId}...`);
 
-    // Genkit returns structured output that matches the schema
-    const extractedData = result.output;
+    // Use the shared generateWeeklySummary function
+    const summary = await generateWeeklySummary(userId);
 
-    // Add metadata if requested
-    if (includeMetadata) {
+    console.log('✅ Weekly summary generated!');
+    return summary;
+
+  } catch (error) {
+    console.error('❌ Weekly summary generation failed:', error);
+    throw new Error(`Failed to generate weekly summary: ${error.message}`);
+  }
+}
+
+/**
+ * Generate a monthly summary for a user
+ *
+ * @param {string} userId - User's ID
+ * @returns {Promise<Object>} Monthly summary with health data
+ */
+async function getMonthlySummary(userId) {
+  try {
+    console.log(`📊 Generating monthly summary for user ${userId}...`);
+
+    // Get entries from the last 30 days (approximately 90 entries)
+    const entries = await getRecentEntries(userId, 90);
+
+    if (entries.length === 0) {
       return {
-        userId,
-        extractedAt: new Date().toISOString(),
-        timeframe,
-        entriesAnalyzed: userMessages.length,
-        data: extractedData,
+        summary: "No entries found for the past month.",
+        extractedData: {
+          symptoms: [],
+          moods: { overall: 'neutral', score: 5, emotions: [] },
+          medications: [],
+          otherHealthChallenges: [],
+        },
       };
     }
 
-    return extractedData;
+    // Aggregate symptoms, moods, medications across all entries
+    const aggregated = aggregateHealthData(entries);
+
+    console.log('✅ Monthly summary generated!');
+    return {
+      summary: generateMonthlySummaryText(aggregated, entries.length),
+      extractedData: aggregated,
+      entriesAnalyzed: entries.length,
+      generatedAt: new Date().toISOString(),
+    };
 
   } catch (error) {
-    console.error('Error extracting health data:', error);
-    throw new Error(`Health data extraction failed: ${error.message}`);
+    console.error('❌ Monthly summary generation failed:', error);
+    throw new Error(`Failed to generate monthly summary: ${error.message}`);
   }
 }
 
 /**
- * Extract data from a single diary entry (for real-time processing)
- * 
- * @param {string} userId - The user's ID
- * @param {string} message - Single diary entry message
- * @returns {Promise<Object>} Extracted health data
+ * Generate a custom period summary
+ *
+ * @param {string} userId - User's ID
+ * @param {number} entryLimit - Maximum number of entries to analyze
+ * @returns {Promise<Object>} Custom period summary
  */
-async function extractFromSingleEntry(userId, message) {
-  return extractHealthData(userId, [message], { 
-    timeframe: 'current entry',
-    includeMetadata: true 
-  });
-}
-
-/**
- * Extract data from multiple entries (for weekly summaries)
- * 
- * @param {string} userId - The user's ID
- * @param {Array<Object>} entries - Array of entry objects from Firebase
- * @returns {Promise<Object>} Aggregated extracted health data
- */
-async function extractFromMultipleEntries(userId, entries) {
-  // Extract just the messages from entry objects
-  const messages = entries.map(entry => entry.userMessage || entry.message);
-  
-  return extractHealthData(userId, messages, {
-    timeframe: `${entries.length} entries`,
-    includeMetadata: true
-  });
-}
-
-/**
- * Validate extracted data against schema
- * 
- * @param {Object} data - Data to validate
- * @returns {boolean} True if valid, throws error if invalid
- */
-function validateExtractedData(data) {
+async function getCustomSummary(userId, entryLimit = 14) {
   try {
-    ExtractedHealthDataSchema.parse(data);
-    return true;
+    console.log(`📊 Generating custom summary for user ${userId} (${entryLimit} entries)...`);
+
+    const entries = await getRecentEntries(userId, entryLimit);
+
+    if (entries.length === 0) {
+      return {
+        summary: "No entries found.",
+        extractedData: {
+          symptoms: [],
+          moods: { overall: 'neutral', score: 5, emotions: [] },
+          medications: [],
+          otherHealthChallenges: [],
+        },
+      };
+    }
+
+    const aggregated = aggregateHealthData(entries);
+
+    console.log('✅ Custom summary generated!');
+    return {
+      summary: generateCustomSummaryText(aggregated, entries.length),
+      extractedData: aggregated,
+      entriesAnalyzed: entries.length,
+      generatedAt: new Date().toISOString(),
+    };
+
   } catch (error) {
-    console.error('Validation error:', error.errors);
-    throw new Error('Extracted data does not match schema');
+    console.error('❌ Custom summary generation failed:', error);
+    throw new Error(`Failed to generate custom summary: ${error.message}`);
   }
+}
+
+/**
+ * Aggregate health data from multiple entries
+ *
+ * @param {Array<Object>} entries - Array of entry objects
+ * @returns {Object} Aggregated health data
+ */
+function aggregateHealthData(entries) {
+  const symptomsMap = new Map();
+  const emotionsSet = new Set();
+  const medicationsMap = new Map();
+  const challengesSet = new Set();
+  let totalMoodScore = 0;
+  let moodCount = 0;
+  let positiveCount = 0;
+  let negativeCount = 0;
+  let neutralCount = 0;
+
+  entries.forEach(entry => {
+    const data = entry.extractedData;
+    if (!data) return;
+
+    // Aggregate symptoms
+    data.symptoms?.forEach(symptom => {
+      if (symptomsMap.has(symptom.name)) {
+        symptomsMap.get(symptom.name).count++;
+      } else {
+        symptomsMap.set(symptom.name, { ...symptom, count: 1 });
+      }
+    });
+
+    // Aggregate moods
+    if (data.moods) {
+      totalMoodScore += data.moods.score;
+      moodCount++;
+      if (data.moods.overall === 'positive') positiveCount++;
+      else if (data.moods.overall === 'negative') negativeCount++;
+      else neutralCount++;
+
+      data.moods.emotions?.forEach(emotion => emotionsSet.add(emotion));
+    }
+
+    // Aggregate medications
+    data.medications?.forEach(med => {
+      medicationsMap.set(med.name, med);
+    });
+
+    // Aggregate challenges
+    data.otherHealthChallenges?.forEach(challenge => challengesSet.add(challenge));
+  });
+
+  // Determine overall mood
+  let overall = 'neutral';
+  if (positiveCount > negativeCount && positiveCount > neutralCount) overall = 'positive';
+  else if (negativeCount > positiveCount && negativeCount > neutralCount) overall = 'negative';
+
+  return {
+    symptoms: Array.from(symptomsMap.values()),
+    moods: {
+      overall,
+      score: moodCount > 0 ? Math.round(totalMoodScore / moodCount) : 5,
+      emotions: Array.from(emotionsSet),
+    },
+    medications: Array.from(medicationsMap.values()),
+    otherHealthChallenges: Array.from(challengesSet),
+  };
+}
+
+/**
+ * Generate monthly summary text
+ */
+function generateMonthlySummaryText(data, entryCount) {
+  let text = `Monthly Health Summary (${entryCount} entries)\n\n`;
+  text += formatHealthData(data);
+  return text;
+}
+
+/**
+ * Generate custom summary text
+ */
+function generateCustomSummaryText(data, entryCount) {
+  let text = `Health Summary (${entryCount} entries)\n\n`;
+  text += formatHealthData(data);
+  return text;
+}
+
+/**
+ * Format health data for display
+ */
+function formatHealthData(data) {
+  let text = '';
+
+  if (data.symptoms.length > 0) {
+    text += 'Symptoms:\n';
+    data.symptoms.forEach(s => {
+      text += `- ${s.name}`;
+      if (s.count) text += ` (mentioned ${s.count}x)`;
+      if (s.duration) text += ` - ${s.duration}`;
+      if (s.degree) text += ` [${s.degree}]`;
+      text += '\n';
+    });
+    text += '\n';
+  }
+
+  text += `Overall Mood: ${data.moods.overall} (Score: ${data.moods.score}/10)\n`;
+  if (data.moods.emotions.length > 0) {
+    text += `Emotions: ${data.moods.emotions.join(', ')}\n`;
+  }
+  text += '\n';
+
+  if (data.medications.length > 0) {
+    text += 'Medications:\n';
+    data.medications.forEach(m => {
+      text += `- ${m.name}`;
+      if (m.dosage) text += ` (${m.dosage})`;
+      if (m.time) text += ` - ${m.time}`;
+      text += '\n';
+    });
+    text += '\n';
+  }
+
+  if (data.otherHealthChallenges.length > 0) {
+    text += `Other Health Concerns: ${data.otherHealthChallenges.join(', ')}\n`;
+  }
+
+  return text;
 }
 
 // Export functions and schema
 export {
-  extractHealthData,
-  extractFromSingleEntry,
-  extractFromMultipleEntries,
-  validateExtractedData,
+  getWeeklySummary,
+  getMonthlySummary,
+  getCustomSummary,
   ExtractedHealthDataSchema,
 };
 
 // Default export for CommonJS compatibility
 export default {
-  extractHealthData,
-  extractFromSingleEntry,
-  extractFromMultipleEntries,
-  validateExtractedData,
-  ExtractedHealthDataSchema,
+  getWeeklySummary,
+  getMonthlySummary,
+  getCustomSummary,
 };
