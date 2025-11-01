@@ -185,146 +185,197 @@ export default function WeekReviewPage() {
   };
 
   const exportWeeklySummary = () => {
-    const analytics = getWeekAnalytics(weekData?.entries || []);
+    // Prefer PDF export (visually styled). This uses html2canvas + jsPDF which
+    // must be installed in the doctor-portal project: `npm install html2canvas jspdf`
+    exportWeeklySummaryPDF().catch((err) => {
+      console.error('PDF export failed, falling back to text export:', err);
+      // Fallback: trigger simple text export if PDF fails
+      const analytics = getWeekAnalytics(weekData?.entries || []);
+      const avgMoodNum = parseFloat(analytics.avgMood);
+      const moodInfo = !isNaN(avgMoodNum) ? getMoodColor(avgMoodNum) : null;
+
+      const summaryText = `THEO HEALTH - WEEKLY SUMMARY\n${weekData?.weekLabel}\nPatient: ${patient?.name}\n\nOVERVIEW\nTotal Entries: ${analytics.totalEntries}\nAverage Mood: ${analytics.avgMood}/10 ${moodInfo ? `(${moodInfo.label})` : ''}\n`;
+
+      const blob = new Blob([summaryText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${patient?.name.replace(/\s+/g, '_')}_Week_${weekData?.weekLabel.replace(/\s+/g, '_')}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  };
+
+  // Generate a styled PDF by rendering a temporary DOM node with the summary
+  const exportWeeklySummaryPDF = async () => {
+    if (!weekData || !patient) throw new Error('Week data or patient missing');
+
+    // dynamic imports so the page doesn't require libraries until used
+    const html2canvasModule = await import('html2canvas');
+    const html2canvas = html2canvasModule.default || html2canvasModule;
+    const { jsPDF } = await import('jspdf');
+
+    const analytics = getWeekAnalytics(weekData.entries || []);
     const avgMoodNum = parseFloat(analytics.avgMood);
     const moodInfo = !isNaN(avgMoodNum) ? getMoodColor(avgMoodNum) : null;
 
-    // Build clinical recommendations section
-    let clinicalRecommendations = '';
+    // Build HTML content for the PDF — keep it self-contained with inline styles
+    const headerColor = '#c1a57d';
+    const subColor = '#b39a6d';
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color:#222; padding:24px; width:800px; box-sizing:border-box; background: #fff;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h1 style="margin:0; font-size:28px; color:${headerColor};">THEO HEALTH</h1>
+            <div style="font-size:14px; color:#444; margin-top:6px;">Weekly Summary — ${weekData.weekLabel}</div>
+            <div style="font-size:13px; color:#666; margin-top:4px;">Patient: <strong>${patient.name}</strong></div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:12px; color:#666;">Created: ${new Date().toLocaleDateString()}</div>
+          </div>
+        </div>
 
-    if (analytics.crisisDetected) {
-      clinicalRecommendations += `
-[ALERT] IMMEDIATE ACTION REQUIRED - Crisis Indicators Detected
+        <hr style="border:none; height:1px; background:#eee; margin:18px 0;" />
 
-Patient has expressed suicidal ideation or severe psychological distress.
-Contact patient immediately and provide crisis intervention resources.
+        <section style="display:flex; gap:24px;">
+          <div style="flex:1; min-width:0;">
+            <h2 style="margin:0 0 8px 0; color:${subColor};">Overview</h2>
+            <p style="margin:0 0 12px 0; color:#333;">Total Entries: <strong>${analytics.totalEntries}</strong><br/>Average Mood: <strong>${analytics.avgMood}/10</strong>${moodInfo ? ` — ${moodInfo.label}` : ''}</p>
 
-Crisis Resources:
-  • 988 - Suicide & Crisis Lifeline (24/7 support)
-  • 741741 - Crisis Text Line (Text HOME)
-  • 911 - For immediate life-threatening emergencies
+            ${analytics.topSymptoms.length > 0 ? `
+              <h3 style="margin-top:12px; color:${headerColor}; font-size:15px">Top Symptoms</h3>
+              <ul style="margin:6px 0 12px 18px; color:#333;">
+                ${analytics.topSymptoms.map(([s,c])=>`<li style="margin-bottom:4px">${s} — ${c} time${c>1?'s':''}</li>`).join('')}
+              </ul>
+            ` : ''}
 
-Consider arranging urgent psychiatric evaluation or emergency department referral
-if patient is in immediate danger.
+            ${analytics.topMedications.length > 0 ? `
+              <h3 style="margin-top:12px; color:${headerColor}; font-size:15px">Medications Mentioned</h3>
+              <ul style="margin:6px 0 12px 18px; color:#333;">
+                ${analytics.topMedications.map(([m,c])=>`<li style="margin-bottom:4px">${m} — ${c} time${c>1?'s':''}</li>`).join('')}
+              </ul>
+            ` : ''}
+          </div>
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-`;
+          <div style="width:260px;">
+            <div style="background:#f7f7f7; padding:12px; border-radius:8px;">
+              <div style="font-size:12px; color:#666;">Engagement</div>
+              <div style="font-size:20px; font-weight:700; color:#222; margin-top:6px">${Math.round((analytics.totalEntries / 7) * 10) / 10}/day</div>
+            </div>
+
+            <div style="margin-top:12px; background:#f7f7f7; padding:12px; border-radius:8px;">
+              <div style="font-size:12px; color:#666;">Mood</div>
+              <div style="font-size:20px; font-weight:700; color:${moodInfo?.text ? '#222' : '#222'}; margin-top:6px">${analytics.avgMood}/10</div>
+              ${moodInfo ? `<div style="font-size:12px; color:#666; margin-top:6px">${moodInfo.label} ${moodInfo.emoji || ''}</div>` : ''}
+            </div>
+          </div>
+        </section>
+
+        ${analytics.topEmotions.length > 0 ? `
+          <section style="margin-top:18px;">
+            <h3 style="color:${headerColor}; margin-bottom:8px">Emotions</h3>
+            <div style="display:flex; gap:8px; flex-wrap:wrap">${analytics.topEmotions.map(([e,c])=>`<span style="background:#f0f0f0; padding:6px 10px; border-radius:999px; font-size:12px; color:#333">${e} (${c})</span>`).join('')}</div>
+          </section>
+        ` : ''}
+
+        ${analytics.crisisDetected ? `
+          <section style="margin-top:18px; background:linear-gradient(90deg,#ffeded,#fff1f1); padding:12px; border-radius:8px; border:1px solid #ffd5d5;">
+            <strong style="color:#b00020">CRISIS INDICATORS DETECTED</strong>
+            <div style="font-size:13px; color:#333; margin-top:6px">Patient expressed suicidal ideation or severe distress. Immediate intervention recommended. See crisis resources in clinical recommendations.</div>
+          </section>
+        ` : ''}
+
+        <section style="margin-top:18px;">
+          <h3 style="color:${headerColor};">Clinical Recommendations</h3>
+          <div style="font-size:13px; color:#333; line-height:1.5; margin-top:8px">
+            ${generateClinicalRecommendationsHTML(analytics)}
+          </div>
+        </section>
+
+      </div>
+    `;
+
+    // create temporary node
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.innerHTML = html;
+    document.body.appendChild(container);
+
+    // Render to canvas at higher scale for crispness
+    const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+
+    // Convert to image
+    const imgData = canvas.toDataURL('image/png');
+
+    // Create PDF
+    const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    // Calculate image dimensions to fit page width
+    const imgProps = { width: canvas.width, height: canvas.height };
+    const imgWidth = pageWidth - 40; // add small margins
+    const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+    let position = 20; // top margin
+
+    // If image fits on one page
+    if (imgHeight <= pageHeight - 40) {
+      pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+    } else {
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+      // Add additional pages by shifting the image up using negative y offsets
+      let remainingHeight = imgHeight - (pageHeight - 40);
+      let offsetY = pageHeight - 40;
+      while (remainingHeight > 0) {
+        pdf.addPage();
+        // place same image shifted up
+        pdf.addImage(imgData, 'PNG', 20, -offsetY, imgWidth, imgHeight);
+        remainingHeight -= (pageHeight - 40);
+        offsetY += (pageHeight - 40);
+      }
     }
 
-    if (avgMoodNum < 5 && !analytics.crisisDetected) {
-      clinicalRecommendations += `
-[CLINICAL] Mood Score Below Baseline (${analytics.avgMood}/10)
+    const filename = `${patient?.name.replace(/\s+/g, '_')}_Week_${weekData?.weekLabel.replace(/\s+/g, '_')}.pdf`;
+    pdf.save(filename);
 
-Recommended Actions:
-  • Schedule follow-up clinical assessment within 1-2 weeks
-  • Review current treatment plan effectiveness
-  • Consider referral to mental health specialist if sustained decline
-  • Assess need for care coordination or case management
+    // cleanup
+    document.body.removeChild(container);
+  };
 
-`;
+  // Helper to produce clinical recommendations HTML for PDF
+  const generateClinicalRecommendationsHTML = (analytics: any) => {
+    let html = '';
+    if (analytics.crisisDetected) {
+      html += `<div style="margin-bottom:8px"><strong style="color:#b00020">[ALERT] IMMEDIATE ACTION REQUIRED</strong><div>Patient has expressed suicidal ideation or severe psychological distress. Contact immediately and provide crisis intervention resources.</div></div>`;
+    }
+
+    if (parseFloat(analytics.avgMood) < 5 && !analytics.crisisDetected) {
+      html += `<div style="margin-bottom:8px"><strong>[CLINICAL] Mood Score Below Baseline (${analytics.avgMood}/10)</strong><ul><li>Schedule follow-up clinical assessment within 1-2 weeks</li><li>Review current treatment plan effectiveness</li><li>Consider referral to mental health specialist if sustained decline</li></ul></div>`;
     }
 
     if (analytics.topSymptoms.length > 2) {
-      clinicalRecommendations += `
-[CLINICAL] Multiple Symptoms Documented (${analytics.topSymptoms.length} distinct symptoms)
-
-Top symptoms: ${analytics.topSymptoms.slice(0, 3).map(([s]) => s).join(", ")}
-
-Clinical Recommendations:
-  • Conduct comprehensive symptom review and physical examination
-  • Consider differential diagnosis and appropriate diagnostic workup
-  • Evaluate for symptom clustering or underlying conditions
-  • Document symptom progression and treatment response
-
-`;
+      html += `<div style="margin-bottom:8px"><strong>[CLINICAL] Multiple Symptoms Documented</strong><div>Top symptoms: ${analytics.topSymptoms.slice(0,3).map(([s])=>s).join(', ')}</div></div>`;
     }
 
     if (analytics.topMedications.length > 0) {
-      clinicalRecommendations += `
-[MEDICATION] References Noted (${analytics.topMedications.length} medication(s) mentioned)
-
-Medication Review Protocol:
-  • Verify current medication list and reconcile with patient report
-  • Assess medication adherence and identify barriers
-  • Screen for adverse effects, drug interactions, or contraindications
-  • Review dosing appropriateness and therapeutic effectiveness
-
-`;
+      html += `<div style="margin-bottom:8px"><strong>[MEDICATION] Medication References Noted</strong><div>Verify current medication list, assess adherence, and screen for adverse effects.</div></div>`;
     }
 
     if (weekData.entries.length < 2) {
-      clinicalRecommendations += `
-[ENGAGEMENT] Limited Patient Engagement (${weekData.entries.length} ${weekData.entries.length === 1 ? 'entry' : 'entries'} recorded)
-
-Engagement Strategies:
-  • Discuss barriers to consistent health journaling during next visit
-  • Reinforce benefits of regular symptom tracking for care optimization
-  • Consider simplified journaling approach or alternative monitoring methods
-  • Assess patient's understanding and comfort with digital health tools
-
-`;
+      html += `<div style="margin-bottom:8px"><strong>[ENGAGEMENT] Limited Patient Engagement</strong><div>Discuss barriers to consistent journaling and consider simplified monitoring.</div></div>`;
     }
 
-    if (avgMoodNum >= 7 && weekData.entries.length >= 5) {
-      clinicalRecommendations += `
-[POSITIVE] Clinical Trajectory (Mood: ${analytics.avgMood}/10, ${weekData.entries.length} entries)
-
-Maintenance Plan:
-  • Continue current treatment regimen and monitoring schedule
-  • Reinforce patient engagement and self-management behaviors
-  • Consider reducing visit frequency if sustained improvement continues
-  • Document factors contributing to positive outcomes for future reference
-
-`;
+    if (parseFloat(analytics.avgMood) >= 7 && weekData.entries.length >= 5) {
+      html += `<div style="margin-bottom:8px"><strong>[POSITIVE] Clinical Trajectory</strong><div>Continue current treatment and monitoring; reinforce engagement.</div></div>`;
     }
 
-    const summaryText = `
-THEO HEALTH - WEEKLY SUMMARY
-${weekData?.weekLabel}
-Patient: ${patient?.name}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-OVERVIEW
-Total Entries: ${analytics.totalEntries}
-Average Mood: ${analytics.avgMood}/10 ${moodInfo ? `(${moodInfo.label})` : ''}
-Engagement: ${Math.round((analytics.totalEntries / 7) * 10) / 10} entries per day
-
-${analytics.topSymptoms.length > 0 ? `
-SYMPTOMS (Top ${analytics.topSymptoms.length})
-${analytics.topSymptoms.map(([symptom, count]) => `  • ${symptom}: ${count} time${count > 1 ? 's' : ''}`).join('\n')}
-` : ''}${analytics.topMedications.length > 0 ? `
-MEDICATIONS MENTIONED
-${analytics.topMedications.map(([med, count]) => `  • ${med}: ${count} time${count > 1 ? 's' : ''}`).join('\n')}
-` : ''}${analytics.topEmotions.length > 0 ? `
-EMOTIONS
-${analytics.topEmotions.map(([emotion, count]) => `  • ${emotion}: ${count} time${count > 1 ? 's' : ''}`).join('\n')}
-` : ''}${clinicalRecommendations ? `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-CLINICAL RECOMMENDATIONS
-
-IMPORTANT: These suggestions are for professional review only. This platform
-is designed to track and summarize patient data, NOT to provide counseling
-or therapeutic intervention. For urgent mental health needs, patients should
-be directed to appropriate crisis resources and professional care.
-${clinicalRecommendations}` : ''}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Generated by Theo Health
-${new Date().toLocaleDateString()}
-    `.trim();
-
-    // Create blob and download
-    const blob = new Blob([summaryText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${patient?.name.replace(/\s+/g, '_')}_Week_${weekData?.weekLabel.replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    return html || '<div>No specific recommendations.</div>';
   };
 
   if (loading) {
@@ -389,7 +440,7 @@ ${new Date().toLocaleDateString()}
             <h2 className="text-3xl font-semibold text-gray-800 mb-1">
               {weekData.weekLabel}
             </h2>
-            <p className="text-base text-gray-500">{patient.name}'s Weekly Summary</p>
+            <p className="text-base text-gray-500">{patient.name}&apos;s Weekly Summary</p>
           </div>
           <div className="flex gap-3">
             <button
