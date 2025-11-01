@@ -13,6 +13,14 @@ export const OPENAI_API_KEY = 'sk-your-openai-api-key-here';
 export const GOOGLE_CLOUD_API_KEY = 'your-google-cloud-key-here';
 export const AZURE_SPEECH_KEY = 'your-azure-speech-key-here';
 
+// AssemblyAI API Key for Speech-to-Text (FREE - 5 hours/month)
+// Get your key from: https://www.assemblyai.com/
+export const ASSEMBLYAI_API_KEY = 'your-assemblyai-key-here';
+
+// Google AI API Key for Gemini (FREE - generous limits)
+// Get your key from: https://aistudio.google.com/app/apikey
+export const GOOGLE_AI_API_KEY = 'your-google-ai-key-here';
+
 // Usage in your code:
 // import { OPENAI_API_KEY } from '../config/apiKeys';
 // const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
