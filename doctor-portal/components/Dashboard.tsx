@@ -93,11 +93,8 @@ export default function Dashboard() {
 
       // Fetch diary entries from users/{userId}/diaryEntries subcollection
       try {
-        const diaryEntriesQuery = query(
-          collection(db, 'users', patientId, 'diaryEntries'),
-          orderBy('createdAt', 'desc')
-        );
-        const diaryEntriesSnapshot = await getDocs(diaryEntriesQuery);
+        const diaryEntriesRef = collection(db, 'users', patientId, 'diaryEntries');
+        const diaryEntriesSnapshot = await getDocs(diaryEntriesRef);
 
         console.log('Diary entries found:', diaryEntriesSnapshot.size);
         diaryEntriesSnapshot.forEach((doc) => {
@@ -115,11 +112,8 @@ export default function Dashboard() {
 
       // Fetch notes from users/{userId}/notes subcollection
       try {
-        const notesQuery = query(
-          collection(db, 'users', patientId, 'notes'),
-          orderBy('createdAt', 'desc')
-        );
-        const notesSnapshot = await getDocs(notesQuery);
+        const notesRef = collection(db, 'users', patientId, 'notes');
+        const notesSnapshot = await getDocs(notesRef);
 
         console.log('Notes (subcollection) found:', notesSnapshot.size);
         notesSnapshot.forEach((doc) => {
@@ -137,11 +131,8 @@ export default function Dashboard() {
 
       // ALSO fetch from global notes collection as fallback
       try {
-        const globalNotesQuery = query(
-          collection(db, 'notes'),
-          orderBy('createdAt', 'desc')
-        );
-        const globalNotesSnapshot = await getDocs(globalNotesQuery);
+        const globalNotesRef = collection(db, 'notes');
+        const globalNotesSnapshot = await getDocs(globalNotesRef);
 
         console.log('Global notes found:', globalNotesSnapshot.size);
         globalNotesSnapshot.forEach((doc) => {

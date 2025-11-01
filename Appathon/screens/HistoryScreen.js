@@ -13,7 +13,7 @@ import { useState, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import SettingsDrawer from "../components/SettingsDrawer";
-import { getUserNotes } from "../services/firestoreService";
+import { getUserNotes, getDiaryEntries } from "../services/firestoreService";
 import { getUserProfile } from "../services/firestoreService";
 
 export default function HistoryScreen({
@@ -52,12 +52,12 @@ export default function HistoryScreen({
         if (profileResult.data.profileImage) {
           setProfileImage(profileResult.data.profileImage);
         }
+      }
 
-        // Get notes
-        const notesResult = await getUserNotes(currentUser.uid);
-        if (notesResult.success) {
-          setNotes(notesResult.data);
-        }
+      // Get diary entries (not notes)
+      const entriesResult = await getDiaryEntries(currentUser.uid, 100);
+      if (entriesResult.success) {
+        setNotes(entriesResult.data);
       }
     } catch (error) {
       console.error("Error loading user data:", error);
@@ -66,9 +66,10 @@ export default function HistoryScreen({
     }
   };
 
-  const filteredNotes = notes.filter((note) =>
-    note.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredNotes = notes.filter((note) => {
+    const content = note.conversationText || note.content || "";
+    return content.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   const hour = new Date().getHours();
   const greeting =
@@ -237,7 +238,7 @@ export default function HistoryScreen({
                   style={[styles.noteContent, { color: theme.text }]}
                   numberOfLines={4}
                 >
-                  {note.content}
+                  {note.conversationText || note.content || note.summary || "No content"}
                 </Text>
                 <View style={styles.noteFooter}>
                   <Text
@@ -246,7 +247,7 @@ export default function HistoryScreen({
                     {note.createdAt?.toDate?.()?.toLocaleDateString() ||
                       "Recent"}
                   </Text>
-                  {note.mood && (
+                  {(note.mood || note.extractedData?.moods?.overall) && (
                     <View
                       style={[
                         styles.moodBadge,
@@ -254,7 +255,7 @@ export default function HistoryScreen({
                       ]}
                     >
                       <Text style={[styles.moodText, { color: theme.primary }]}>
-                        {note.mood}
+                        {note.mood || note.extractedData?.moods?.overall}
                       </Text>
                     </View>
                   )}
