@@ -8,6 +8,7 @@ import {
   Platform,
   Animated,
   Alert,
+  TextInput,
 } from "react-native";
 import { useState, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,14 +19,17 @@ export default function ChatScreen({ onBack, onFinish }) {
   const { theme } = useTheme();
   const [messages, setMessages] = useState([
     {
-      id: 1,
+      id: "ai-initial",
       text: "Hello! I'm here to listen. How are you feeling today?",
       sender: "ai",
       timestamp: new Date(),
     },
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const [textInput, setTextInput] = useState("");
   const scrollViewRef = useRef(null);
+  const textInputRef = useRef(null);
+  const recordingStartTime = useRef(null);
 
   // Speech recognition hook
   const {
@@ -89,6 +93,9 @@ export default function ChatScreen({ onBack, onFinish }) {
 
   const handleStartRecording = async () => {
     try {
+      // Record start time
+      recordingStartTime.current = Date.now();
+
       // Start actual audio recording
       await startRecording();
 
@@ -108,6 +115,7 @@ export default function ChatScreen({ onBack, onFinish }) {
       ]).start();
     } catch (error) {
       console.error("Error starting recording:", error);
+      recordingStartTime.current = null;
       Alert.alert(
         "Recording Error",
         "Could not start recording. Please check microphone permissions.",
@@ -118,57 +126,98 @@ export default function ChatScreen({ onBack, onFinish }) {
 
   const handleStopRecording = async () => {
     try {
+      // Check if recording was held long enough (minimum 500ms)
+      if (recordingStartTime.current) {
+        const duration = Date.now() - recordingStartTime.current;
+        console.log(`🎙️ Recording duration: ${duration}ms`);
+
+        if (duration < 500) {
+          Alert.alert(
+            "Recording Too Short",
+            "Please hold the microphone button for at least 1 second while speaking.",
+            [{ text: "OK" }]
+          );
+          recordingStartTime.current = null;
+          return;
+        }
+      }
+
       // Stop recording and get transcription
       const transcription = await recordAndTranscribe();
+      recordingStartTime.current = null;
 
       if (transcription) {
-        // Add user message with actual transcription
-        const newMessage = {
-          id: messages.length + 1,
-          text: transcription,
-          sender: "user",
-          timestamp: new Date(),
-        };
-
-        setMessages((prev) => [...prev, newMessage]);
-
-        // Show typing indicator after a delay
-        setTimeout(() => {
-          setIsTyping(true);
-        }, 800);
-
-        // Simulate AI response (replace with actual AI call later)
-        setTimeout(() => {
-          setIsTyping(false);
-
-          const aiResponses = [
-            "I hear you. Can you tell me more about what's been weighing on you most?",
-            "Thank you for sharing that. How does that make you feel?",
-            "That sounds challenging. What do you think would help you feel better?",
-            "I understand. Have you noticed any patterns in when these feelings come up?",
-            "That's important to acknowledge. What support do you have right now?",
-          ];
-
-          const randomResponse =
-            aiResponses[Math.floor(Math.random() * aiResponses.length)];
-
-          const aiResponse = {
-            id: messages.length + 2,
-            text: randomResponse,
-            sender: "ai",
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, aiResponse]);
-        }, 2500);
+        handleSendMessage(transcription);
       }
     } catch (error) {
       console.error("Error stopping recording:", error);
+      recordingStartTime.current = null;
+
+      // Provide more specific error messages
+      let errorMessage = "Could not process your message. Please try again.";
+
+      if (error.message.includes("No audio recorded")) {
+        errorMessage = "No audio was recorded. Please hold the microphone button longer (at least 1 second) and speak clearly.";
+      } else if (error.message.includes("permission")) {
+        errorMessage = "Microphone permission is required. Please enable it in your device settings.";
+      }
+
       Alert.alert(
-        "Transcription Error",
-        "Could not process your message. Please try again.",
+        "Recording Error",
+        errorMessage,
         [{ text: "OK" }]
       );
     }
+  };
+
+  const handleSendMessage = (messageText) => {
+    if (!messageText.trim()) return;
+
+    // Add user message with unique ID using timestamp
+    const userMessageId = `user-${Date.now()}`;
+    const newMessage = {
+      id: userMessageId,
+      text: messageText.trim(),
+      sender: "user",
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, newMessage]);
+    setTextInput("");
+
+    // Show typing indicator after a delay
+    setTimeout(() => {
+      setIsTyping(true);
+    }, 800);
+
+    // Simulate AI response (replace with actual AI call later)
+    setTimeout(() => {
+      setIsTyping(false);
+
+      const aiResponses = [
+        "I hear you. Can you tell me more about what's been weighing on you most?",
+        "Thank you for sharing that. How does that make you feel?",
+        "That sounds challenging. What do you think would help you feel better?",
+        "I understand. Have you noticed any patterns in when these feelings come up?",
+        "That's important to acknowledge. What support do you have right now?",
+      ];
+
+      const randomResponse =
+        aiResponses[Math.floor(Math.random() * aiResponses.length)];
+
+      const aiMessageId = `ai-${Date.now()}`;
+      const aiResponse = {
+        id: aiMessageId,
+        text: randomResponse,
+        sender: "ai",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, aiResponse]);
+    }, 2500);
+  };
+
+  const handleSendTextMessage = () => {
+    handleSendMessage(textInput);
   };
 
   const handleFinishSession = () => {
@@ -251,105 +300,140 @@ export default function ChatScreen({ onBack, onFinish }) {
       <View
         style={[
           styles.bottomContainer,
-          { 
-            backgroundColor: theme.background, 
-            borderTopColor: theme.border 
+          {
+            backgroundColor: theme.background,
+            borderTopColor: theme.border
           },
         ]}
       >
-        {/* Recording ripple effects */}
-        {isRecording && (
-          <>
-            <Animated.View
-              style={[
-                styles.ripple,
-                {
-                  backgroundColor: theme.primary,
-                  opacity: recordingRipple.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.3, 0],
-                  }),
-                  transform: [
-                    {
-                      scale: recordingRipple.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 1.5],
-                      }),
-                    },
-                  ],
-                },
-              ]}
+        {/* Text input and send button */}
+        <View style={styles.inputRow}>
+          <View style={[styles.inputContainer, {
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border
+          }]}>
+            <TextInput
+              ref={textInputRef}
+              style={[styles.textInput, { color: theme.text }]}
+              placeholder="Type a message..."
+              placeholderTextColor={theme.textSecondary}
+              value={textInput}
+              onChangeText={setTextInput}
+              multiline
+              maxLength={500}
+              returnKeyType="send"
+              onSubmitEditing={handleSendTextMessage}
             />
-            <Animated.View
-              style={[
-                styles.ripple,
-                styles.ripple2,
-                {
-                  backgroundColor: theme.primary,
-                  opacity: recordingRipple.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.2, 0],
-                  }),
+          </View>
+
+          {/* Send button or Mic button */}
+          {textInput.trim() ? (
+            <TouchableOpacity
+              style={[styles.sendButton, { backgroundColor: theme.primary }]}
+              onPress={handleSendTextMessage}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="send" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          ) : (
+            <>
+              {/* Recording ripple effects */}
+              {isRecording && (
+                <>
+                  <Animated.View
+                    style={[
+                      styles.ripple,
+                      {
+                        backgroundColor: theme.primary,
+                        opacity: recordingRipple.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.3, 0],
+                        }),
+                        transform: [
+                          {
+                            scale: recordingRipple.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [1, 1.5],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  />
+                  <Animated.View
+                    style={[
+                      styles.ripple,
+                      styles.ripple2,
+                      {
+                        backgroundColor: theme.primary,
+                        opacity: recordingRipple.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.2, 0],
+                        }),
+                        transform: [
+                          {
+                            scale: recordingRipple.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [1, 1.8],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  />
+                </>
+              )}
+
+              <Animated.View
+                style={{
                   transform: [
+                    { scale: pulseAnim },
+                    { scale: micButtonScale }
+                  ]
+                }}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.micButton,
                     {
-                      scale: recordingRipple.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 1.8],
-                      }),
+                      backgroundColor: isRecording ? "#EF4444" : theme.primary,
+                      shadowColor: isRecording ? "#EF4444" : theme.primary,
+                      opacity: isTranscribing ? 0.5 : 1,
                     },
-                  ],
-                },
-              ]}
-            />
-          </>
+                  ]}
+                  onPressIn={handleStartRecording}
+                  onPressOut={handleStopRecording}
+                  activeOpacity={0.9}
+                  disabled={isTranscribing}
+                >
+                  <Ionicons
+                    name={isRecording ? "stop" : "mic"}
+                    size={28}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
+              </Animated.View>
+            </>
+          )}
+        </View>
+
+        {!textInput.trim() && (
+          <Text style={[styles.micLabel, { color: theme.textSecondary }]}>
+            {isTranscribing
+              ? "Processing..."
+              : isRecording
+              ? "Release to send"
+              : "Hold to speak"}
+          </Text>
         )}
-
-        {/* Mic button */}
-        <Animated.View 
-          style={{ 
-            transform: [
-              { scale: pulseAnim },
-              { scale: micButtonScale }
-            ] 
-          }}
-        >
-          <TouchableOpacity
-            style={[
-              styles.micButton,
-              {
-                backgroundColor: isRecording ? "#EF4444" : theme.primary,
-                shadowColor: isRecording ? "#EF4444" : theme.primary,
-                opacity: isTranscribing ? 0.5 : 1,
-              },
-            ]}
-            onPressIn={handleStartRecording}
-            onPressOut={handleStopRecording}
-            activeOpacity={0.9}
-            disabled={isTranscribing}
-          >
-            <Ionicons
-              name={isRecording ? "stop" : "mic"}
-              size={40}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
-        </Animated.View>
-
-        <Text style={[styles.micLabel, { color: theme.textSecondary }]}>
-          {isTranscribing
-            ? "Processing..."
-            : isRecording
-            ? "Release to send"
-            : "Hold to speak"}
-        </Text>
 
         {messages.length > 2 && (
           <TouchableOpacity
             style={[
               styles.finishButton,
-              { 
-                backgroundColor: theme.cardBackground, 
-                borderColor: theme.primary 
+              {
+                backgroundColor: theme.cardBackground,
+                borderColor: theme.primary
               },
             ]}
             onPress={handleFinishSession}
@@ -608,43 +692,78 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   bottomContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderTopWidth: 1,
     alignItems: "center",
     position: "relative",
   },
-  ripple: {
-    position: "absolute",
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    top: 20,
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    gap: 12,
+    marginBottom: 12,
   },
-  ripple2: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+  inputContainer: {
+    flex: 1,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    minHeight: 48,
+    maxHeight: 120,
+    justifyContent: "center",
   },
-  micButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  textInput: {
+    fontSize: 16,
+    lineHeight: 20,
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
     shadowOffset: {
       width: 0,
-      height: 6,
+      height: 2,
     },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
-    marginBottom: 16,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  ripple: {
+    position: "absolute",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    right: 6,
+  },
+  ripple2: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  micButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
   },
   micLabel: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "500",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   finishButton: {
     flexDirection: "row",

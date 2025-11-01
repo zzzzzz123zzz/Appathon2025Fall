@@ -77,89 +77,56 @@ export function useSpeechRecognition() {
   const stopRecording = async () => {
     try {
       if (!recordingRef.current) {
-        console.log('⚠️ No recording found');
+        console.log('⚠️ No recording found in stopRecording');
         return null;
       }
 
       console.log('🎙️ Stopping recording...');
+
+      // Get status BEFORE stopping to check duration
+      const statusBefore = await recordingRef.current.getStatusAsync();
+      console.log('📊 Recording Status BEFORE stop:', {
+        isRecording: statusBefore.isRecording,
+        duration: statusBefore.durationMillis ? `${(statusBefore.durationMillis / 1000).toFixed(2)}s` : 'unknown',
+        canRecord: statusBefore.canRecord,
+      });
+
+      // Check if recording duration is too short
+      if (statusBefore.durationMillis < 100) {
+        console.warn('⚠️ Recording is too short (less than 100ms)');
+      }
+
       setIsRecording(false);
 
       await recordingRef.current.stopAndUnloadAsync();
 
       const uri = recordingRef.current.getURI();
+      console.log('📁 Recording URI:', uri);
 
-      // Get recording status for logging
-      const status = await recordingRef.current.getStatusAsync();
-      console.log('📊 Recording Status:', {
-        uri: uri,
-        duration: status.durationMillis ? `${(status.durationMillis / 1000).toFixed(2)}s` : 'unknown',
-        isDoneRecording: status.isDoneRecording,
-        canRecord: status.canRecord,
-      });
-
+      // Clear the ref
+      const tempRecording = recordingRef.current;
       recordingRef.current = null;
+
+      // Validate URI exists
+      if (!uri) {
+        console.error('❌ No URI returned from recording');
+        throw new Error("Recording failed to produce audio file");
+      }
 
       return uri;
     } catch (error) {
       console.error("❌ Failed to stop recording:", error);
+      setIsRecording(false);
+      recordingRef.current = null;
       throw error;
     }
   };
 
   /**
-   * Transcribe audio to text
+   * Transcribe audio to text using AssemblyAI (FREE - 5 hours/month)
    *
-   * IMPLEMENTATION NOTE:
-   * This is a placeholder that returns mock text.
-   * Replace this with actual speech-to-text API integration.
-   *
-   * Example integration with OpenAI Whisper:
-   *
-   * ```javascript
-   * const transcribeAudio = async (audioUri) => {
-   *   const formData = new FormData();
-   *   formData.append('file', {
-   *     uri: audioUri,
-   *     type: 'audio/m4a',
-   *     name: 'recording.m4a',
-   *   });
-   *   formData.append('model', 'whisper-1');
-   *
-   *   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-   *     method: 'POST',
-   *     headers: {
-   *       'Authorization': `Bearer ${OPENAI_API_KEY}`,
-   *     },
-   *     body: formData,
-   *   });
-   *
-   *   const data = await response.json();
-   *   return data.text;
-   * };
-   * ```
-   *
-   * Example integration with Google Cloud Speech-to-Text:
-   *
-   * ```javascript
-   * import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-   * import { getFunctions, httpsCallable } from 'firebase/functions';
-   *
-   * const transcribeAudio = async (audioUri) => {
-   *   // Upload audio to Firebase Storage
-   *   const storage = getStorage();
-   *   const audioRef = ref(storage, `audio/${Date.now()}.m4a`);
-   *   const response = await fetch(audioUri);
-   *   const blob = await response.blob();
-   *   await uploadBytes(audioRef, blob);
-   *   const downloadUrl = await getDownloadURL(audioRef);
-   *
-   *   // Call Cloud Function to transcribe
-   *   const functions = getFunctions();
-   *   const transcribe = httpsCallable(functions, 'transcribeAudio');
-   *   const result = await transcribe({ audioUrl: downloadUrl });
-   *   return result.data.transcript;
-   * };
-   * ```
+   * AssemblyAI offers a generous free tier with high-quality transcription.
+   * Process: 1) Upload audio 2) Create transcript 3) Poll for results
    */
   const transcribeAudio = async (audioUri) => {
     setIsTranscribing(true);
@@ -168,78 +135,117 @@ export function useSpeechRecognition() {
       console.log('🔄 Starting transcription...');
       console.log('📁 Audio URI:', audioUri);
 
-      // Check if file exists and get info
+      // Import API key
+      let ASSEMBLYAI_API_KEY;
       try {
-        const response = await fetch(audioUri);
-        const blob = await response.blob();
-        console.log('📦 Audio file info:', {
-          size: `${(blob.size / 1024).toFixed(2)} KB`,
-          type: blob.type,
-        });
-      } catch (e) {
-        console.warn('⚠️ Could not read audio file info:', e.message);
+        const apiKeys = require('../config/apiKeys');
+        ASSEMBLYAI_API_KEY = apiKeys.ASSEMBLYAI_API_KEY;
+      } catch (error) {
+        console.error('❌ Could not load API keys:', error);
+        throw new Error('API configuration missing. Please set up your AssemblyAI API key in config/apiKeys.js');
       }
 
-      // ============================================================
-      // OPTION 1: OpenAI Whisper API (RECOMMENDED - Uncomment to use)
-      // ============================================================
-      //
-      // SETUP:
-      // 1. Get API key from: https://platform.openai.com/api-keys
-      // 2. Create config/apiKeys.js with: export const OPENAI_API_KEY = 'your-key-here';
-      // 3. Uncomment the code below
-      //
-      // const OPENAI_API_KEY = require('../config/apiKeys').OPENAI_API_KEY;
-      //
-      // const formData = new FormData();
-      // formData.append('file', {
-      //   uri: audioUri,
-      //   type: 'audio/m4a',
-      //   name: 'recording.m4a',
-      // });
-      // formData.append('model', 'whisper-1');
-      //
-      // console.log('🚀 Sending to OpenAI Whisper API...');
-      // const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      //   },
-      //   body: formData,
-      // });
-      //
-      // if (!response.ok) {
-      //   const errorText = await response.text();
-      //   console.error('❌ Whisper API error:', errorText);
-      //   throw new Error(`Whisper API error: ${response.status}`);
-      // }
-      //
-      // const data = await response.json();
-      // console.log('✅ Transcription successful:', data.text);
-      // return data.text;
+      // Validate API key
+      if (!ASSEMBLYAI_API_KEY || ASSEMBLYAI_API_KEY === 'your-assemblyai-api-key-here') {
+        console.error('❌ AssemblyAI API key not configured');
+        throw new Error('Please add your FREE AssemblyAI API key to config/apiKeys.js. Get one at https://www.assemblyai.com/');
+      }
 
-      // ============================================================
-      // OPTION 2: Mock Transcription (CURRENT - For testing)
-      // ============================================================
-      console.log('⚠️ Using MOCK transcription (no real API configured)');
-      console.log('💡 To enable real transcription, see comments in useSpeechRecognition.js');
+      // Step 1: Upload the audio file to AssemblyAI
+      console.log('📤 Step 1: Uploading audio to AssemblyAI...');
 
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
+      const audioResponse = await fetch(audioUri);
+      const audioBlob = await audioResponse.blob();
+      console.log('📦 Audio file size:', `${(audioBlob.size / 1024).toFixed(2)} KB`);
 
-      const mockTranscriptions = [
-        "I've been feeling a bit anxious lately.",
-        "I had a really good day today.",
-        "Can you help me understand these feelings?",
-        "I'm worried about my upcoming presentation.",
-        "I feel much better after talking about it.",
-        "Today was challenging but I made it through.",
-        "I'm grateful for the support I've been receiving.",
-      ];
+      const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
+        method: 'POST',
+        headers: {
+          'authorization': ASSEMBLYAI_API_KEY,
+        },
+        body: audioBlob,
+      });
 
-      const randomIndex = Math.floor(Math.random() * mockTranscriptions.length);
-      const mockResult = mockTranscriptions[randomIndex];
-      console.log('📝 Mock transcription:', mockResult);
-      return mockResult;
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error('❌ Upload error:', errorText);
+        throw new Error(`Failed to upload audio: ${uploadResponse.status}`);
+      }
+
+      const uploadData = await uploadResponse.json();
+      const audioUrl = uploadData.upload_url;
+      console.log('✅ Audio uploaded successfully');
+
+      // Step 2: Create a transcript
+      console.log('📝 Step 2: Creating transcript...');
+
+      const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
+        method: 'POST',
+        headers: {
+          'authorization': ASSEMBLYAI_API_KEY,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          audio_url: audioUrl,
+          language_code: 'en_us',
+        }),
+      });
+
+      if (!transcriptResponse.ok) {
+        const errorText = await transcriptResponse.text();
+        console.error('❌ Transcript creation error:', errorText);
+        throw new Error(`Failed to create transcript: ${transcriptResponse.status}`);
+      }
+
+      const transcriptData = await transcriptResponse.json();
+      const transcriptId = transcriptData.id;
+      console.log('📋 Transcript ID:', transcriptId);
+
+      // Step 3: Poll for the transcript result
+      console.log('⏳ Step 3: Waiting for transcription to complete...');
+
+      let transcript = null;
+      let attempts = 0;
+      const maxAttempts = 30; // 30 seconds max wait
+
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+
+        const pollingResponse = await fetch(
+          `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
+          {
+            headers: {
+              'authorization': ASSEMBLYAI_API_KEY,
+            },
+          }
+        );
+
+        const pollingData = await pollingResponse.json();
+
+        if (pollingData.status === 'completed') {
+          transcript = pollingData.text;
+          console.log('✅ Transcription completed!');
+          break;
+        } else if (pollingData.status === 'error') {
+          console.error('❌ Transcription failed:', pollingData.error);
+          throw new Error(`Transcription failed: ${pollingData.error}`);
+        }
+
+        console.log(`⏳ Status: ${pollingData.status} (attempt ${attempts + 1}/${maxAttempts})`);
+        attempts++;
+      }
+
+      if (!transcript) {
+        throw new Error('Transcription timed out. Please try again.');
+      }
+
+      if (!transcript.trim()) {
+        console.warn('⚠️ Empty transcription received');
+        throw new Error('Could not understand audio. Please speak more clearly.');
+      }
+
+      console.log('📝 Transcription:', transcript);
+      return transcript;
 
     } catch (error) {
       console.error("❌ Transcription error:", error);
