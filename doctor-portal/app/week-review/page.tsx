@@ -341,7 +341,8 @@ export default function WeekReviewPage() {
       }
     }
 
-    const filename = `${patient?.name.replace(/\s+/g, '_')}_Week_${weekData?.weekLabel.replace(/\s+/g, '_')}.pdf`;
+    const filename = `[WEEKLYSUMMARY]${patient?.name.replace(/\s+/g, '_')}_${weekData?.weekLabel.split(',')[0].split(' ')[0]}_${weekData?.weekLabel.split(',')[0].split(' ')[1]}_${weekData?.weekLabel.split(',')[1].trim()}.pdf`;
+
     pdf.save(filename);
 
     // cleanup
