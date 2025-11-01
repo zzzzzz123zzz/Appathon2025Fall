@@ -81,48 +81,263 @@ function getAIInstance() {
 }
 
 /**
- * Common extraction rules prompt
+ * Comprehensive extraction rules prompt (tailored for patient free-text)
+ * Extends your original scope while remaining deterministic and JSON-only.
  */
 const EXTRACTION_RULES = `
-EXTRACTION RULES:
+EXTRACTION RULES (READ CAREFULLY):
 
-1. **Symptoms**
-   - Extract symptom name (use common medical terms)
-   - Duration: ONLY if user mentions specific time (e.g., "3 days", "two weeks")
-   - Degree: Choose from: mild, moderate, severe, worsening, improving
-     * mild = slight, minor, small, light
-     * moderate = noticeable, somewhat, quite, "worse than usual" but not extreme
-     * severe = extreme, very bad, intense, unbearable
-     * worsening = "getting worse", "worse than before"
-     * improving = "getting better", "less than before"
-   - If duration or degree not mentioned, omit those fields
+GENERAL PRINCIPLES
+- Extract ONLY what the user explicitly states or clearly implies with unambiguous wording.
+- Prefer standard medical terms; normalize slang to common terms (e.g., "tummy ache" → "abdominal pain").
+- Use ISO-like normalization where applicable (units, dates, frequencies).
+- Respect negation (e.g., "no fever") and uncertainty (e.g., "maybe strep"); never invent.
+- If a field is unknown or not stated, omit that field (do NOT fabricate).
+- Arrays must be present even if empty: use [].
+- Return a single, valid, minified JSON object conforming to the SCHEMA below. No extra text.
 
-2. **Moods**
-   - Overall: positive, neutral, or negative (based on tone across ALL entries)
-   - Score: 1-10 (1 = most negative, 10 = most positive)
-   - Emotions: list specific emotions mentioned or clearly inferred
-   - Avoid duplicates (use "anxious" not both "anxiety" and "anxious")
+---------------------------------------
+1) SYMPTOMS
+---------------------------------------
+For each symptom explicitly stated:
+- name: string (normalized medical term, lowercase except proper nouns)
+- duration: string ONLY if user gives a concrete time (normalize; see DURATION RULES)
+- degree: one of [mild, moderate, severe, worsening, improving] (MAP below)
+- frequency: string if stated (e.g., "daily", "2-3 times/day", "intermittent")
+- onset: string if stated (e.g., "sudden", "gradual", "since Monday")
+- triggers: string[] of concrete triggers (e.g., "after meals", "exercise", "pollen")
+- relievers: string[] of concrete alleviators (e.g., "ibuprofen", "rest", "ice")
+- location: string if a body location is stated (e.g., "lower back", "left knee")
+- associatedSymptoms: string[] for symptoms the user links (e.g., "nausea", "vomiting")
+- notes: string for short specific details (avoid prose; e.g., "worse at night")
 
-3. **Medications**
-   - Name: medication or supplement name
-   - Dosage: only if explicitly stated
-   - Taken:
-     * true = currently taking ("I take", "I'm taking")
-     * false = stopped taking ("I used to take", "I don't take anymore")
-     * omit if unclear
-   - Time: when taken if mentioned (morning, night, etc.)
+DEGREE MAPPING (pick the strongest applicable once):
+- mild = "slight", "a little", "small", "light", "manageable"
+- moderate = "noticeable", "somewhat", "quite", "more than usual"
+- severe = "extreme", "very bad", "intense", "unbearable", "excruciating"
+- worsening = "getting worse", "worse than before", "progressively worse"
+- improving = "getting better", "less than before", "easing", "subsiding"
 
-4. **Other Health Challenges**
-   - Chronic conditions (diabetes, asthma, etc.)
-   - Ongoing health management concerns
-   - Do NOT repeat symptoms already listed
+EXCLUSIONS:
+- If duration/frequency/degree not stated, omit those fields for that symptom.
+- Do not list a symptom in \\"Symptoms\\" if it is clearly negated (see NEGATION RULES).
+  Negated mentions go to \\"negations.symptomsNotPresent\\".
+
+---------------------------------------
+2) MOODS
+---------------------------------------
+Capture psychological state when present:
+- overall: one of [positive, neutral, negative] based on overall tone THIS ENTRY ONLY.
+- score: integer 1–10 if the user provides a scale; if not explicitly present, OMIT.
+- emotions: string[] normalized (e.g., "anxious", "sad", "irritable", "hopeful")
+- stressors: string[] (e.g., "work", "school", "family conflict") if explicitly stated
+- sleepImpact: string (e.g., "trouble falling asleep") if user ties mood ↔ sleep
+- notes: short details if needed
+
+DE-DUPING: prefer adjectives (“anxious”) over nouns (“anxiety”). No duplicates.
+
+---------------------------------------
+3) MEDICATIONS & SUBSTANCES
+---------------------------------------
+For each medication/supplement/substance explicitly mentioned:
+- name: string (normalized generic if easy, else as stated)
+- dosage: string if stated (e.g., "400 mg", "2 puffs", "10 mL")
+- route: string if stated (e.g., "oral", "inhaled", "topical")
+- frequency: string if stated (e.g., "daily", "twice a day", "PRN", "at night")
+- taken: true = currently taking; false = explicitly stopped; omit if unclear
+- timing: string if stated (e.g., "morning", "with meals", "bedtime")
+- indication: string if user states why (e.g., "for back pain")
+- startDate: string if given (e.g., "since June", "3 days ago")
+- sideEffects: string[] if explicitly linked (e.g., "nausea", "drowsiness")
+
+Include nicotine, alcohol, cannabis, recreational substances if explicitly mentioned as “substances” with same shape, using \\"route\\" and \\"frequency\\".
+
+---------------------------------------
+4) OTHER HEALTH CHALLENGES / CONDITIONS
+---------------------------------------
+Chronic or ongoing items (do NOT repeat symptoms already listed unless that is the condition name):
+- conditions: string[] (e.g., "asthma", "type 2 diabetes", "GERD")
+- managementConcerns: string[] (explicit concerns like adherence, cost, monitoring)
+- allergies: array of { substance: string, reaction: string (if stated) }
+- pastProcedures: string[] if explicitly mentioned (“appendectomy”, “ACL repair”)
+
+---------------------------------------
+5) VITALS / MEASUREMENTS (if stated)
+---------------------------------------
+- vitals: array of { type: one of [temperature, heart_rate, blood_pressure, respirations, oxygen_saturation, weight, height, blood_glucose], value: string (normalized), unit: string (normalized), timing: string if stated }
+  Examples:
+  - blood_pressure: value "120/80", unit "mmHg"
+  - temperature: value "101.3", unit "F" (or "C")
+  - blood_glucose: value "145", unit "mg/dL", timing "fasting" if stated
+
+---------------------------------------
+6) LIFESTYLE / CONTEXT
+---------------------------------------
+- sleep: { duration: string if stated (e.g., "6 hours"), quality: string if stated ("poor"/"fragmented"), issues: string[] (e.g., "insomnia", "snoring") }
+- diet: { patterns: string[] ("low carb", "high salt"), recentChanges: string[] }
+- activity: { level: string if stated ("sedentary", "active"), notes: string }
+- substances: (see Section 3) but summarize high-level here if helpful
+- exposures: string[] (e.g., "sick contacts", "new pet", "travel", "chemical exposure")
+
+---------------------------------------
+7) TESTS / CARE / APPOINTMENTS
+---------------------------------------
+- testsMentioned: array of { name: string, status: one of [done, ordered, planned], result: string if stated (“negative”, “positive”, value string), timing: string }
+- appointments: array of { type: string (“PCP”, “dermatology”), date: string if stated, purpose: string }
+- careActionsRequested: string[] (e.g., "refill request", "work note", "imaging referral")
+- priorDiagnosesThisEpisode: string[] (e.g., "strep throat last week") if stated
+
+---------------------------------------
+8) NEGATIONS & UNCERTAINTY
+---------------------------------------
+NEGATION RULES:
+- Collect clear negatives (e.g., "no fever", "denies chest pain").
+- Place negated symptoms in:
+  negations: { symptomsNotPresent: string[] }
+- Do NOT list negated items under Symptoms.
+
+UNCERTAINTY RULES:
+- uncertainty: string[] to capture explicit uncertainty (“maybe strep”, “possible allergy”).
+- Do not convert uncertain mentions into confirmed diagnoses or symptoms unless the user also states them as present.
+
+---------------------------------------
+9) TEMPORAL & COREFERENCE
+---------------------------------------
+- Resolve pronouns within the same message only and only when unambiguous.
+- Normalize relative time if possible (e.g., "since Monday" → as stated; do not compute calendar dates).
+- For recurring patterns, capture frequency (“every morning”, “2–3x/week”).
+
+---------------------------------------
+10) RED FLAGS (simple extraction, NOT triage)
+---------------------------------------
+If explicitly mentioned, copy into:
+- redFlags: string[] (e.g., "fainting", "chest pain", "shortness of breath at rest", "blood in stool", "suicidal thoughts")
+Do not infer red flags; only record if user states them.
+
+---------------------------------------
+11) DEDUP & NORMALIZATION
+---------------------------------------
+- Merge duplicate symptoms differing only by synonyms; keep one normalized name.
+- DURATION RULES: Keep as stated but normalized (e.g., "3 days", "2 weeks", "since yesterday").
+- UNITS: Normalize common units (mg, mL, °F/°C, mmHg, bpm, %).
+- CASE: Use lowercase for keys and string values, except proper nouns and drug brand names as stated.
+
+---------------------------------------
+12) OUTPUT SCHEMA (STRICT)
+---------------------------------------
+{
+  "symptoms": [
+    {
+      "name": string,
+      "duration": string?,
+      "degree": "mild" | "moderate" | "severe" | "worsening" | "improving"?,
+      "frequency": string?,
+      "onset": string?,
+      "triggers": string[]?,
+      "relievers": string[]?,
+      "location": string?,
+      "associatedSymptoms": string[]?,
+      "notes": string?
+    }
+  ],
+  "mood": {
+    "overall": "positive" | "neutral" | "negative"?,
+    "score": number?,          // 1..10 if explicitly stated
+    "emotions": string[]?,
+    "stressors": string[]?,
+    "sleepImpact": string?,
+    "notes": string?
+  },
+  "medications": [
+    {
+      "name": string,
+      "dosage": string?,
+      "route": string?,
+      "frequency": string?,
+      "taken": true | false?,   // omit if unclear
+      "timing": string?,
+      "indication": string?,
+      "startDate": string?,
+      "sideEffects": string[]?
+    }
+  ],
+  "conditions": {
+    "chronic": string[],        // e.g., ["asthma", "type 2 diabetes"]
+    "managementConcerns": string[]
+  },
+  "allergies": [
+    { "substance": string, "reaction": string? }
+  ],
+  "vitals": [
+    { "type": string, "value": string, "unit": string, "timing": string? }
+  ],
+  "lifestyle": {
+    "sleep": { "duration": string?, "quality": string?, "issues": string[]? },
+    "diet": { "patterns": string[]?, "recentChanges": string[]? },
+    "activity": { "level": string?, "notes": string? },
+    "exposures": string[]?
+  },
+  "tests": [
+    { "name": string, "status": "done" | "ordered" | "planned", "result": string?, "timing": string? }
+  ],
+  "appointments": [
+    { "type": string, "date": string?, "purpose": string? }
+  ],
+  "careActionsRequested": string[],
+  "priorDiagnosesThisEpisode": string[],
+  "negations": {
+    "symptomsNotPresent": string[]
+  },
+  "uncertainty": string[],
+  "redFlags": string[],
+  "notes": string[]            // misc short factual notes that don’t fit elsewhere
+}
+
+---------------------------------------
+13) MINI EXAMPLE (FOR VALIDATION)
+---------------------------------------
+USER: "I've had a pounding headache for 3 days, worse at night. Ibuprofen helps a bit. No fever. I feel anxious. I take sertraline 50 mg daily. BP yesterday was 130/85."
+
+OUTPUT:
+{
+  "symptoms":[
+    {
+      "name":"headache",
+      "duration":"3 days",
+      "degree":"moderate",
+      "frequency":"worse at night",
+      "relievers":["ibuprofen"],
+      "notes":"pounding"
+    }
+  ],
+  "mood":{
+    "overall":"neutral",
+    "emotions":["anxious"]
+  },
+  "medications":[
+    {"name":"sertraline","dosage":"50 mg","frequency":"daily","taken":true}
+  ],
+  "conditions":{"chronic":[],"managementConcerns":[]},
+  "allergies":[],
+  "vitals":[
+    {"type":"blood_pressure","value":"130/85","unit":"mmHg","timing":"yesterday"}
+  ],
+  "lifestyle":{"sleep":{"issues":["worse at night"]},"diet":{},"activity":{},"exposures":[]},
+  "tests":[],
+  "appointments":[],
+  "careActionsRequested":[],
+  "priorDiagnosesThisEpisode":[],
+  "negations":{"symptomsNotPresent":["fever"]},
+  "uncertainty":[],
+  "redFlags":[],
+  "notes":[]
+}
 
 IMPORTANT:
-- Only extract what is explicitly stated
-- Use empty arrays [] for missing data
-- Return valid JSON matching the schema
-- No explanations or prose
+- Output must be valid JSON and match the SCHEMA.
+- Do not include any explanations, headings, or commentary—JSON only.
 `;
+
 
 /**
  * Core AI extraction function
