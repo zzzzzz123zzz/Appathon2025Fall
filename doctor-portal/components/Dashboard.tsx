@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { signOut, createUserWithEmailAndPassword } from "firebase/auth";
 import {
   collection,
@@ -28,6 +29,7 @@ type WeekData = {
 };
 
 export default function Dashboard() {
+  const router = useRouter();
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [allPatients, setAllPatients] = useState<Patient[]>([]);
   const [myPatients, setMyPatients] = useState<Patient[]>([]);
@@ -35,10 +37,6 @@ export default function Dashboard() {
   const [patientEntries, setPatientEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsedWeeks, setCollapsedWeeks] = useState<Set<string>>(new Set());
-  const [selectedWeek, setSelectedWeek] = useState<WeekData | null>(null);
-  const [weekTab, setWeekTab] = useState<
-    "entries" | "analytics" | "mood" | "suggestions"
-  >("entries");
   const [showAddPatient, setShowAddPatient] = useState(false);
   const [showCreatePatient, setShowCreatePatient] = useState(false);
   const [newPatientForm, setNewPatientForm] = useState({
@@ -573,56 +571,52 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f4f4]">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-[#e5e5e5]">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-8 py-5 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-[#444444]">Doctor Portal</h1>
-            <p className="text-sm text-[#888888]">
-              Welcome, Dr. {doctor?.name}
+            <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">Theo Health</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Welcome back, Dr. {doctor?.name}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleSignOut}
-              className="px-4 py-2 border-2 border-[#e5e5e5] rounded-lg text-[#444444] font-semibold hover:bg-[#f4f4f4] transition"
-            >
-              Sign Out
-            </button>
-          </div>
+          <button
+            onClick={handleSignOut}
+            className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all duration-200"
+          >
+            Sign Out
+          </button>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="max-w-7xl mx-auto px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Patients List */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-[#e5e5e5]">
-              <div className="p-6 border-b border-[#e5e5e5]">
-                <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-lg font-bold text-[#444444]">
-                    My Patients ({myPatients.length})
-                  </h2>
-                </div>
-                <div className="space-y-2">
+            <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 overflow-hidden">
+              <div className="p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  My Patients <span className="text-gray-400 text-base font-normal">({myPatients.length})</span>
+                </h2>
+                <div className="space-y-2.5">
                   <div className="flex gap-2">
                     <button
                       onClick={() => setShowCreatePatient(true)}
-                      className="flex-1 px-4 py-2 bg-[#c1a57d] hover:bg-[#a89267] text-white rounded-lg text-sm font-semibold shadow-md hover:shadow-lg transition"
+                      className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] hover:from-[#b39a6d] hover:to-[#a89267] text-white rounded-xl text-sm font-medium shadow-md hover:shadow-lg transition-all duration-200"
                     >
                       + Create New
                     </button>
                     <button
                       onClick={() => setShowAddPatient(true)}
-                      className="flex-1 px-4 py-2 border-2 border-[#c1a57d] text-[#c1a57d] hover:bg-[#c1a57d] hover:text-white rounded-lg text-sm font-semibold transition"
+                      className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-medium transition-all duration-200"
                     >
                       Add Existing
                     </button>
                   </div>
                   <button
                     onClick={() => setShowCSVImport(true)}
-                    className="w-full px-4 py-2 border-2 border-[#e5e5e5] text-[#444444] hover:bg-[#f4f4f4] rounded-lg text-sm font-semibold transition"
+                    className="w-full px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-sm font-medium transition-all duration-200"
                   >
                     📄 Import CSV
                   </button>
@@ -630,26 +624,31 @@ export default function Dashboard() {
               </div>
 
               {myPatients.length === 0 ? (
-                <div className="p-8 text-center">
-                  <p className="text-[#888888]">No patients yet</p>
-                  <p className="text-sm text-[#888888] mt-2">
+                <div className="p-10 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500 font-medium">No patients yet</p>
+                  <p className="text-sm text-gray-400 mt-1">
                     Add patients to start monitoring
                   </p>
                 </div>
               ) : (
-                <div className="max-h-[calc(100vh-280px)] overflow-y-auto">
+                <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
                   {myPatients.map((patient) => (
                     <div
                       key={patient.id}
                       onClick={() => setSelectedPatient(patient)}
-                      className={`p-4 border-b border-[#e5e5e5] cursor-pointer hover:bg-[#f4f4f4] transition ${
+                      className={`p-4 mx-3 mb-2 rounded-xl cursor-pointer transition-all duration-200 ${
                         selectedPatient?.id === patient.id
-                          ? "bg-[#f4f4f4] border-l-4 border-l-[#c1a57d]"
-                          : ""
+                          ? "bg-gradient-to-r from-[#c1a57d]/10 to-[#b39a6d]/10 shadow-md"
+                          : "hover:bg-gray-50"
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#c1a57d] flex items-center justify-center text-white font-semibold flex-shrink-0">
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#c1a57d] to-[#b39a6d] flex items-center justify-center text-white font-medium flex-shrink-0 shadow-md">
                           {patient.profileImage ? (
                             <img
                               src={patient.profileImage}
@@ -661,10 +660,10 @@ export default function Dashboard() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-[#444444] truncate">
+                          <h3 className="font-medium text-gray-800 truncate">
                             {patient.name}
                           </h3>
-                          <p className="text-sm text-[#888888] truncate">
+                          <p className="text-sm text-gray-500 truncate">
                             {patient.email}
                           </p>
                         </div>
@@ -675,9 +674,11 @@ export default function Dashboard() {
                               removePatient(patient.id);
                             }
                           }}
-                          className="text-red-500 hover:text-red-700 font-bold text-lg"
+                          className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-all duration-200"
                         >
-                          ×
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
                         </button>
                       </div>
                     </div>
@@ -689,66 +690,80 @@ export default function Dashboard() {
 
           {/* Patient Details */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-[#e5e5e5]">
+            <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 overflow-hidden">
               {selectedPatient ? (
                 <>
-                  <div className="flex items-center gap-4 pb-6 border-b border-[#e5e5e5] mb-6">
-                    <div className="w-16 h-16 rounded-full bg-[#c1a57d] flex items-center justify-center text-white text-2xl font-bold shadow-md">
-                      {selectedPatient.profileImage ? (
-                        <img
-                          src={selectedPatient.profileImage}
-                          alt={selectedPatient.name}
-                          className="w-full h-full rounded-full object-cover"
-                        />
-                      ) : (
-                        selectedPatient.name.charAt(0).toUpperCase()
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h2 className="text-2xl font-bold text-[#444444]">
-                        {selectedPatient.name}
-                      </h2>
-                      <p className="text-[#888888]">{selectedPatient.email}</p>
-                      <p className="text-sm text-[#888888] mt-1">
-                        Patient since {formatDate(selectedPatient.createdAt)}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setShowNotificationModal(true)}
-                      className="px-4 py-2 bg-[#c1a57d] hover:bg-[#a89267] text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition flex items-center gap-2"
-                      title={
-                        selectedPatient.pushToken
-                          ? "Send push notification"
-                          : "Patient has not enabled notifications"
-                      }
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                  <div className="p-6 bg-gradient-to-br from-gray-50 to-white">
+                    <div className="flex items-center gap-5">
+                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#c1a57d] to-[#b39a6d] flex items-center justify-center text-white text-3xl font-semibold shadow-lg">
+                        {selectedPatient.profileImage ? (
+                          <img
+                            src={selectedPatient.profileImage}
+                            alt={selectedPatient.name}
+                            className="w-full h-full rounded-2xl object-cover"
+                          />
+                        ) : (
+                          selectedPatient.name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h2 className="text-2xl font-semibold text-gray-800">
+                          {selectedPatient.name}
+                        </h2>
+                        <p className="text-gray-500 mt-0.5">{selectedPatient.email}</p>
+                        <p className="text-sm text-gray-400 mt-1.5 flex items-center gap-1.5">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          Patient since {formatDate(selectedPatient.createdAt)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowNotificationModal(true)}
+                        className="px-5 py-3 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] hover:from-[#b39a6d] hover:to-[#a89267] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+                        title={
+                          selectedPatient.pushToken
+                            ? "Send push notification"
+                            : "Patient has not enabled notifications"
+                        }
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                        />
-                      </svg>
-                      Notify Patient
-                    </button>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                          />
+                        </svg>
+                        Notify
+                      </button>
+                    </div>
                   </div>
 
-                  <h3 className="text-lg font-bold text-[#444444] mb-4">
-                    Journal Entries ({patientEntries.length})
-                  </h3>
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-5 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Journal Entries <span className="text-gray-400 text-base font-normal">({patientEntries.length})</span>
+                    </h3>
 
                   {patientEntries.length === 0 ? (
-                    <div className="text-center py-12">
-                      <p className="text-[#888888]">No journal entries yet</p>
+                    <div className="text-center py-16">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 font-medium">No journal entries yet</p>
                     </div>
                   ) : (
-                    <div className="space-y-6 max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
+                    <div className="space-y-6 max-h-[calc(100vh-420px)] overflow-y-auto pr-2">
                       {groupEntriesByWeek(patientEntries).map(
                         (week, weekIndex) => {
                           const weekKey = week.startDate.toISOString();
@@ -757,12 +772,12 @@ export default function Dashboard() {
                           return (
                             <div key={weekIndex} className="space-y-3">
                               {/* Week Header */}
-                              <div className="sticky top-0 bg-white z-10 pb-2 mb-3 border-b-2 border-[#c1a57d]">
-                                <div className="flex items-center justify-between gap-3">
+                              <div className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 pb-3 mb-3">
+                                <div className="flex items-center justify-between gap-3 px-4 py-3 bg-gradient-to-r from-[#c1a57d]/10 to-transparent rounded-xl">
                                   <div className="flex items-center gap-3 flex-1">
                                     <button
                                       onClick={() => toggleWeek(weekKey)}
-                                      className="text-[#c1a57d] hover:text-[#a89267] transition-colors"
+                                      className="text-[#c1a57d] hover:text-[#a89267] transition-colors p-1 hover:bg-white/50 rounded-lg"
                                       title={
                                         isCollapsed ? "Expand" : "Collapse"
                                       }
@@ -797,22 +812,29 @@ export default function Dashboard() {
                                         </svg>
                                       )}
                                     </button>
-                                    <h3 className="text-lg font-bold text-[#c1a57d]">
-                                      📅 {week.weekLabel}
+                                    <h3 className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      </svg>
+                                      {week.weekLabel}
                                     </h3>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="text-sm font-semibold text-[#888888] bg-[#f4f4f4] px-3 py-1 rounded-full">
+                                    <span className="text-xs font-medium text-gray-600 bg-white px-3 py-1.5 rounded-full shadow-sm">
                                       {week.entries.length}{" "}
                                       {week.entries.length === 1
                                         ? "entry"
                                         : "entries"}
                                     </span>
                                     <button
-                                      onClick={() => setSelectedWeek(week)}
-                                      className="px-3 py-1 bg-[#c1a57d] hover:bg-[#a89267] text-white text-sm font-semibold rounded-lg transition-colors"
+                                      onClick={() => {
+                                        if (selectedPatient) {
+                                          router.push(`/week-review?patientId=${selectedPatient.id}&weekStart=${week.startDate.toISOString()}`);
+                                        }
+                                      }}
+                                      className="px-3 py-1.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] hover:from-[#b39a6d] hover:to-[#a89267] text-white text-xs font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                                     >
-                                      View Week →
+                                      View →
                                     </button>
                                   </div>
                                 </div>
@@ -823,15 +845,15 @@ export default function Dashboard() {
                                 week.entries.map((entry) => (
                                   <div
                                     key={entry.id}
-                                    className="bg-white rounded-lg p-5 border-2 border-[#e5e5e5] hover:border-[#c1a57d] hover:shadow-md transition-all duration-200"
+                                    className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-5 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100"
                                   >
                                     <div className="flex justify-between items-center mb-3">
                                       <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-[#888888]">
+                                        <span className="text-sm font-medium text-gray-500">
                                           {formatDateTime(entry.createdAt)}
                                         </span>
                                         {entry.entryType === "diary" && (
-                                          <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-semibold rounded">
+                                          <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-lg">
                                             AI Processed
                                           </span>
                                         )}
@@ -839,14 +861,14 @@ export default function Dashboard() {
                                       {entry.entryType === "note" &&
                                         "mood" in entry &&
                                         entry.mood && (
-                                          <span className="px-3 py-1 bg-[#c1a57d] text-white text-xs font-semibold rounded-full">
+                                          <span className="px-3 py-1.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] text-white text-xs font-medium rounded-full shadow-sm">
                                             {entry.mood}
                                           </span>
                                         )}
                                       {entry.entryType === "diary" &&
                                         "extractedData" in entry &&
                                         entry.extractedData?.moods?.overall && (
-                                          <span className="px-3 py-1 bg-[#c1a57d] text-white text-xs font-semibold rounded-full">
+                                          <span className="px-3 py-1.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] text-white text-xs font-medium rounded-full shadow-sm">
                                             {entry.extractedData.moods.overall}
                                           </span>
                                         )}
@@ -855,7 +877,7 @@ export default function Dashboard() {
                                     {/* Display content based on entry type */}
                                     {entry.entryType === "note" &&
                                       "content" in entry && (
-                                        <p className="text-[#444444] leading-relaxed">
+                                        <p className="text-gray-700 leading-relaxed">
                                           {entry.content}
                                         </p>
                                       )}
@@ -864,19 +886,25 @@ export default function Dashboard() {
                                       "summary" in entry && (
                                         <>
                                           {entry.summary && (
-                                            <div className="mb-3">
-                                              <h4 className="text-sm font-bold text-[#c1a57d] mb-1">
+                                            <div className="mb-4">
+                                              <h4 className="text-sm font-semibold text-[#c1a57d] mb-2 flex items-center gap-1.5">
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                                </svg>
                                                 AI Summary
                                               </h4>
-                                              <p className="text-[#444444] leading-relaxed">
+                                              <p className="text-gray-700 leading-relaxed">
                                                 {entry.summary}
                                               </p>
                                             </div>
                                           )}
 
                                           {entry.extractedData && (
-                                            <div className="mt-3 pt-3 border-t border-[#e5e5e5] space-y-2">
-                                              <h4 className="text-sm font-bold text-[#c1a57d]">
+                                            <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                                              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
                                                 Extracted Health Data
                                               </h4>
 
@@ -1008,14 +1036,20 @@ export default function Dashboard() {
                       )}
                     </div>
                   )}
+                  </div>
                 </>
               ) : (
-                <div className="text-center py-20">
-                  <h3 className="text-xl font-semibold text-[#444444]">
+                <div className="text-center py-24">
+                  <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
+                    <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-800">
                     Select a patient
                   </h3>
-                  <p className="text-[#888888] mt-2">
-                    Choose a patient from the left to view their journal entries
+                  <p className="text-gray-500 mt-2 max-w-sm mx-auto">
+                    Choose a patient from the sidebar to view their journal entries and health data
                   </p>
                 </div>
               )}
@@ -1024,452 +1058,44 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Weekly Detail Modal */}
-      {selectedWeek && (
-        <div
-          className="fixed inset-0 bg-white bg-opacity-40 flex items-center justify-center p-8 z-50 animate-fadeIn backdrop-blur-sm"
-          onClick={() => setSelectedWeek(null)}
-        >
-          <div
-            className="bg-white w-full max-h-[92vh] flex flex-col animate-slideUp"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Week Header */}
-            <div className="px-10 py-8 flex justify-between items-center">
-              <div>
-                <h2 className="text-3xl font-bold text-[#c1a57d] mb-2">
-                  📅 {selectedWeek.weekLabel}
-                </h2>
-                <p className="text-base text-[#888888]">
-                  {selectedPatient?.name}'s Weekly Summary
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedWeek(null)}
-                className="text-[#888888] hover:text-[#c1a57d] text-4xl font-light transition-all duration-300 hover:rotate-90 w-10 h-10 flex items-center justify-center"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Tabs */}
-            <div className="px-10">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setWeekTab("entries")}
-                  className={`px-6 py-3 font-semibold rounded-t-xl transition-all duration-300 ${
-                    weekTab === "entries"
-                      ? "text-[#c1a57d] bg-[#f9f9f9] shadow-sm"
-                      : "text-[#888888] hover:text-[#c1a57d] hover:bg-[#fafafa]"
-                  }`}
-                >
-                  Entries ({selectedWeek.entries.length})
-                </button>
-                <button
-                  onClick={() => setWeekTab("analytics")}
-                  className={`px-6 py-3 font-semibold rounded-t-xl transition-all duration-300 ${
-                    weekTab === "analytics"
-                      ? "text-[#c1a57d] bg-[#f9f9f9] shadow-sm"
-                      : "text-[#888888] hover:text-[#c1a57d] hover:bg-[#fafafa]"
-                  }`}
-                >
-                  Analytics
-                </button>
-                <button
-                  onClick={() => setWeekTab("mood")}
-                  className={`px-6 py-3 font-semibold rounded-t-xl transition-all duration-300 ${
-                    weekTab === "mood"
-                      ? "text-[#c1a57d] bg-[#f9f9f9] shadow-sm"
-                      : "text-[#888888] hover:text-[#c1a57d] hover:bg-[#fafafa]"
-                  }`}
-                >
-                  Mood Trends
-                </button>
-                <button
-                  onClick={() => setWeekTab("suggestions")}
-                  className={`px-6 py-3 font-semibold rounded-t-xl transition-all duration-300 ${
-                    weekTab === "suggestions"
-                      ? "text-[#c1a57d] bg-[#f9f9f9] shadow-sm"
-                      : "text-[#888888] hover:text-[#c1a57d] hover:bg-[#fafafa]"
-                  }`}
-                >
-                  Suggestions
-                </button>
-              </div>
-            </div>
-
-            {/* Tab Content */}
-            <div className="px-10 py-8 overflow-y-auto flex-1 bg-[#f9f9f9] rounded-b-3xl">
-              {weekTab === "entries" && (
-                <div className="space-y-6">
-                  {selectedWeek.entries.map((entry, index) => (
-                    <div
-                      key={entry.id}
-                      className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-all duration-300 animate-fadeIn"
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                    >
-                      <div className="flex justify-between items-start mb-6">
-                        <span className="text-sm font-medium text-[#888888]">
-                          {formatDateTime(entry.createdAt)}
-                        </span>
-                        {entry.entryType === "diary" &&
-                          "extractedData" in entry &&
-                          entry.extractedData?.moods?.overall && (
-                            <span className="px-4 py-2 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] text-white text-sm font-semibold rounded-full shadow-sm">
-                              {entry.extractedData.moods.overall} ·{" "}
-                              {entry.extractedData.moods.score}/10
-                            </span>
-                          )}
-                      </div>
-                      {entry.entryType === "diary" &&
-                        "summary" in entry &&
-                        entry.summary && (
-                          <p className="text-[#444444] leading-relaxed text-lg">
-                            {entry.summary}
-                          </p>
-                        )}
-                      {entry.entryType === "note" && "content" in entry && (
-                        <p className="text-[#444444] leading-relaxed text-lg">
-                          {entry.content}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {weekTab === "analytics" &&
-                (() => {
-                  const analytics = getWeekAnalytics(selectedWeek.entries);
-                  return (
-                    <div className="space-y-10">
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-all duration-300">
-                          <p className="text-sm font-medium text-[#888888] mb-3">
-                            Total Entries
-                          </p>
-                          <p className="text-5xl font-bold bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] bg-clip-text text-transparent">
-                            {analytics.totalEntries}
-                          </p>
-                        </div>
-                        <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-all duration-300">
-                          <p className="text-sm font-medium text-[#888888] mb-3">
-                            Average Mood
-                          </p>
-                          <p className="text-5xl font-bold bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] bg-clip-text text-transparent">
-                            {analytics.avgMood}/10
-                          </p>
-                        </div>
-                      </div>
-
-                      {analytics.topSymptoms.length > 0 && (
-                        <div>
-                          <h3 className="text-2xl font-bold text-[#444444] mb-6">
-                            Most Frequent Symptoms
-                          </h3>
-                          <div className="space-y-4">
-                            {analytics.topSymptoms.map(
-                              ([symptom, count], index) => (
-                                <div
-                                  key={symptom}
-                                  className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 flex justify-between items-center animate-fadeIn"
-                                  style={{ animationDelay: `${index * 0.1}s` }}
-                                >
-                                  <span className="font-medium text-[#444444] capitalize text-lg">
-                                    {symptom}
-                                  </span>
-                                  <span className="px-4 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white text-sm font-bold rounded-full shadow-sm">
-                                    {count} times
-                                  </span>
-                                </div>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {analytics.topMedications.length > 0 && (
-                        <div>
-                          <h3 className="text-2xl font-bold text-[#444444] mb-6">
-                            Medications Mentioned
-                          </h3>
-                          <div className="space-y-4">
-                            {analytics.topMedications.map(
-                              ([med, count], index) => (
-                                <div
-                                  key={med}
-                                  className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 flex justify-between items-center animate-fadeIn"
-                                  style={{ animationDelay: `${index * 0.1}s` }}
-                                >
-                                  <span className="font-medium text-[#444444] text-lg">
-                                    {med}
-                                  </span>
-                                  <span className="px-4 py-2 bg-gradient-to-r from-green-400 to-green-500 text-white text-sm font-bold rounded-full shadow-sm">
-                                    {count} times
-                                  </span>
-                                </div>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-              {weekTab === "mood" &&
-                (() => {
-                  const analytics = getWeekAnalytics(selectedWeek.entries);
-                  return (
-                    <div className="space-y-10">
-                      <div className="bg-white rounded-2xl p-10 shadow-sm text-center">
-                        <p className="text-sm font-medium text-[#888888] mb-4">
-                          Average Mood Score
-                        </p>
-                        <p className="text-7xl font-bold bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] bg-clip-text text-transparent mb-4">
-                          {analytics.avgMood}
-                        </p>
-                        <p className="text-base text-[#888888]">
-                          {selectedWeek.entries.length} entries recorded this
-                          week
-                        </p>
-                      </div>
-
-                      {analytics.topEmotions.length > 0 && (
-                        <div>
-                          <h3 className="text-2xl font-bold text-[#444444] mb-6">
-                            Most Common Emotions
-                          </h3>
-                          <div className="grid grid-cols-2 gap-5">
-                            {analytics.topEmotions.map(
-                              ([emotion, count], index) => (
-                                <div
-                                  key={emotion}
-                                  className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-all duration-300 animate-fadeIn"
-                                  style={{ animationDelay: `${index * 0.1}s` }}
-                                >
-                                  <p className="text-2xl font-bold text-[#c1a57d] capitalize mb-2">
-                                    {emotion}
-                                  </p>
-                                  <p className="text-base text-[#888888]">
-                                    {count} times this week
-                                  </p>
-                                </div>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {analytics.moodScores.length > 0 && (
-                        <div>
-                          <h3 className="text-2xl font-bold text-[#444444] mb-6">
-                            Daily Mood Scores
-                          </h3>
-                          <div className="bg-white rounded-2xl p-8 shadow-sm">
-                            <div className="flex items-end gap-3 h-64">
-                              {analytics.moodScores.map((score, idx) => (
-                                <div
-                                  key={idx}
-                                  className="flex-1 flex flex-col items-center justify-end"
-                                >
-                                  <div
-                                    className="w-full bg-gradient-to-t from-[#c1a57d] to-[#d4c3a8] rounded-t-lg transition-all duration-500 hover:opacity-80"
-                                    style={{ height: `${(score / 10) * 100}%` }}
-                                  ></div>
-                                  <span className="text-sm text-[#888888] mt-3 font-medium">
-                                    {score}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-              {weekTab === "suggestions" &&
-                (() => {
-                  const analytics = getWeekAnalytics(selectedWeek.entries);
-                  const avgMoodNum = parseFloat(analytics.avgMood);
-
-                  return (
-                    <div className="space-y-8 animate-fadeIn">
-                      <div
-                        className="bg-gradient-to-br from-white to-blue-50 rounded-2xl p-8 shadow-lg"
-                        style={{ animationDelay: "0.1s" }}
-                      >
-                        <h3 className="text-2xl font-bold bg-gradient-to-r from-[#c1a57d] to-[#a89267] bg-clip-text text-transparent mb-3">
-                          💡 AI-Powered Suggestions
-                        </h3>
-                        <p className="text-base text-gray-600 leading-relaxed">
-                          Based on this week's entries, here are some
-                          recommendations:
-                        </p>
-                      </div>
-
-                      {avgMoodNum < 5 && (
-                        <div
-                          className="bg-gradient-to-br from-white to-amber-50 rounded-2xl p-8 shadow-md hover:shadow-xl transition-all duration-300 animate-fadeIn"
-                          style={{ animationDelay: "0.2s" }}
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                              <span className="text-2xl">⚠️</span>
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="text-xl font-bold text-gray-800 mb-2">
-                                Low Mood Alert
-                              </h4>
-                              <p className="text-base text-gray-600 leading-relaxed">
-                                The average mood score this week is{" "}
-                                {analytics.avgMood}/10. Consider scheduling a
-                                follow-up appointment to discuss mental health
-                                support options.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {analytics.topSymptoms.length > 2 && (
-                        <div
-                          className="bg-gradient-to-br from-white to-red-50 rounded-2xl p-8 shadow-md hover:shadow-xl transition-all duration-300 animate-fadeIn"
-                          style={{ animationDelay: "0.3s" }}
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                              <span className="text-2xl">🏥</span>
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="text-xl font-bold text-gray-800 mb-2">
-                                Multiple Symptoms Reported
-                              </h4>
-                              <p className="text-base text-gray-600 leading-relaxed">
-                                Patient reported {analytics.topSymptoms.length}{" "}
-                                different symptoms this week. Review symptom
-                                patterns and consider diagnostic evaluation.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {analytics.topMedications.length > 0 && (
-                        <div
-                          className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl p-8 shadow-md hover:shadow-xl transition-all duration-300 animate-fadeIn"
-                          style={{ animationDelay: "0.4s" }}
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                              <span className="text-2xl">💊</span>
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="text-xl font-bold text-gray-800 mb-2">
-                                Medication Tracking
-                              </h4>
-                              <p className="text-base text-gray-600 leading-relaxed">
-                                Patient mentioned{" "}
-                                {analytics.topMedications.length} medication(s)
-                                this week. Verify medication adherence and check
-                                for any side effects.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedWeek.entries.length < 2 && (
-                        <div
-                          className="bg-gradient-to-br from-white to-orange-50 rounded-2xl p-8 shadow-md hover:shadow-xl transition-all duration-300 animate-fadeIn"
-                          style={{ animationDelay: "0.5s" }}
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                              <span className="text-2xl">📝</span>
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="text-xl font-bold text-gray-800 mb-2">
-                                Low Engagement
-                              </h4>
-                              <p className="text-base text-gray-600 leading-relaxed">
-                                Only {selectedWeek.entries.length} entry this
-                                week. Encourage patient to journal more
-                                regularly for better health tracking.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {avgMoodNum >= 7 && selectedWeek.entries.length >= 5 && (
-                        <div
-                          className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl p-8 shadow-md hover:shadow-xl transition-all duration-300 animate-fadeIn"
-                          style={{ animationDelay: "0.6s" }}
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                              <span className="text-2xl">✨</span>
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="text-xl font-bold text-gray-800 mb-2">
-                                Positive Progress
-                              </h4>
-                              <p className="text-base text-gray-600 leading-relaxed">
-                                Excellent! High mood score ({analytics.avgMood}
-                                /10) and consistent journaling. Continue current
-                                treatment plan.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Add Patient Modal */}
       {showAddPatient && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
           onClick={() => setShowAddPatient(false)}
         >
           <div
-            className="bg-white rounded-xl max-w-md w-full max-h-[80vh] flex flex-col border border-[#e5e5e5]"
+            className="bg-white rounded-2xl max-w-md w-full max-h-[80vh] flex flex-col shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-[#e5e5e5] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#444444]">Add Patient</h2>
+            <div className="p-6 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-800">Add Patient</h2>
               <button
                 onClick={() => setShowAddPatient(false)}
-                className="text-[#888888] hover:text-[#444444] text-2xl font-bold"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-all duration-200"
               >
-                ×
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto">
+            <div className="px-6 pb-6 overflow-y-auto">
               {availablePatients.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-[#888888]">No available patients</p>
-                  <p className="text-sm text-[#888888] mt-2">
+                  <p className="text-gray-500 font-medium">No available patients</p>
+                  <p className="text-sm text-gray-400 mt-2">
                     All users are in your patient list
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {availablePatients.map((patient) => (
                     <div
                       key={patient.id}
-                      className="flex items-center gap-3 p-3 border-2 border-[#e5e5e5] rounded-lg hover:border-[#c1a57d] transition"
+                      className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all duration-200"
                     >
-                      <div className="w-10 h-10 rounded-full bg-[#c1a57d] flex items-center justify-center text-white font-semibold flex-shrink-0">
+                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#c1a57d] to-[#b39a6d] flex items-center justify-center text-white font-medium flex-shrink-0 shadow-md">
                         {patient.profileImage ? (
                           <img
                             src={patient.profileImage}
@@ -1481,16 +1107,16 @@ export default function Dashboard() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-[#444444] truncate">
+                        <h4 className="font-medium text-gray-800 truncate">
                           {patient.name}
                         </h4>
-                        <p className="text-sm text-[#888888] truncate">
+                        <p className="text-sm text-gray-500 truncate">
                           {patient.email}
                         </p>
                       </div>
                       <button
                         onClick={() => addPatient(patient.id)}
-                        className="px-4 py-2 bg-[#c1a57d] hover:bg-[#a89267] text-white rounded-lg text-sm font-semibold shadow-md hover:shadow-lg transition"
+                        className="px-4 py-2 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] hover:from-[#b39a6d] hover:to-[#a89267] text-white rounded-lg text-sm font-medium shadow-md hover:shadow-lg transition-all duration-200"
                       >
                         Add
                       </button>
@@ -1506,7 +1132,7 @@ export default function Dashboard() {
       {/* Create Patient Modal */}
       {showCreatePatient && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
           onClick={() => {
             setShowCreatePatient(false);
             setCreateError("");
@@ -1514,11 +1140,11 @@ export default function Dashboard() {
           }}
         >
           <div
-            className="bg-white rounded-xl max-w-md w-full border border-[#e5e5e5]"
+            className="bg-white rounded-2xl max-w-md w-full shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-[#e5e5e5] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#444444]">
+            <div className="p-6 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-800">
                 Create New Patient
               </h2>
               <button
@@ -1527,22 +1153,24 @@ export default function Dashboard() {
                   setCreateError("");
                   setNewPatientForm({ name: "", email: "", password: "" });
                 }}
-                className="text-[#888888] hover:text-[#444444] text-2xl font-bold"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-all duration-200"
               >
-                ×
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <form onSubmit={createNewPatient} className="p-6">
+            <form onSubmit={createNewPatient} className="px-6 pb-6">
               {createError && (
-                <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg text-red-800 text-sm">
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
                   {createError}
                 </div>
               )}
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-[#444444] mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Patient Name
                   </label>
                   <input
@@ -1555,13 +1183,13 @@ export default function Dashboard() {
                         name: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 border-2 border-[#e5e5e5] rounded-lg bg-white text-[#444444] focus:outline-none focus:border-[#c1a57d]"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#c1a57d]/50 focus:border-[#c1a57d] transition-all duration-200"
                     placeholder="John Doe"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-[#444444] mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Email Address
                   </label>
                   <input
@@ -1574,13 +1202,13 @@ export default function Dashboard() {
                         email: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 border-2 border-[#e5e5e5] rounded-lg bg-white text-[#444444] focus:outline-none focus:border-[#c1a57d]"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#c1a57d]/50 focus:border-[#c1a57d] transition-all duration-200"
                     placeholder="patient@example.com"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-[#444444] mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Password
                   </label>
                   <input
@@ -1594,10 +1222,10 @@ export default function Dashboard() {
                         password: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 border-2 border-[#e5e5e5] rounded-lg bg-white text-[#444444] focus:outline-none focus:border-[#c1a57d]"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#c1a57d]/50 focus:border-[#c1a57d] transition-all duration-200"
                     placeholder="Min. 6 characters"
                   />
-                  <p className="text-xs text-[#888888] mt-1">
+                  <p className="text-xs text-gray-500 mt-2">
                     This will be the patient's login password for the mobile app
                   </p>
                 </div>
@@ -1611,14 +1239,14 @@ export default function Dashboard() {
                     setCreateError("");
                     setNewPatientForm({ name: "", email: "", password: "" });
                   }}
-                  className="flex-1 px-4 py-2 border-2 border-[#e5e5e5] rounded-lg text-[#444444] font-semibold hover:bg-[#f4f4f4] transition"
+                  className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all duration-200"
                   disabled={creatingPatient}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-[#c1a57d] hover:bg-[#a89267] text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] hover:from-[#b39a6d] hover:to-[#a89267] text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={creatingPatient}
                 >
                   {creatingPatient ? "Creating..." : "Create Patient"}
@@ -1632,7 +1260,7 @@ export default function Dashboard() {
       {/* Send Notification Modal */}
       {showNotificationModal && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
           onClick={() => {
             if (!sendingNotification) {
               setShowNotificationModal(false);
@@ -1641,13 +1269,16 @@ export default function Dashboard() {
           }}
         >
           <div
-            className="bg-white rounded-xl max-w-md w-full border border-[#e5e5e5]"
+            className="bg-white rounded-2xl max-w-md w-full shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-[#e5e5e5] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#444444]">
-                Send Notification to {selectedPatient?.name}
-              </h2>
+            <div className="p-6 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Send Notification
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">to {selectedPatient?.name}</p>
+              </div>
               <button
                 onClick={() => {
                   if (!sendingNotification) {
@@ -1655,16 +1286,18 @@ export default function Dashboard() {
                     setNotificationForm({ title: "", message: "" });
                   }
                 }}
-                className="text-[#888888] hover:text-[#444444] text-2xl font-bold"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-all duration-200"
                 disabled={sendingNotification}
               >
-                ×
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="px-6 pb-6">
               {!selectedPatient?.pushToken && (
-                <div className="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg text-yellow-800 text-sm">
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 text-sm">
                   This patient has not enabled push notifications yet. They will
                   need to open the app and allow notifications first.
                 </div>
@@ -1672,7 +1305,7 @@ export default function Dashboard() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-[#444444] mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Notification Title
                   </label>
                   <input
@@ -1685,14 +1318,14 @@ export default function Dashboard() {
                         title: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 border-2 border-[#e5e5e5] rounded-lg bg-white text-[#444444] focus:outline-none focus:border-[#c1a57d]"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#c1a57d]/50 focus:border-[#c1a57d] transition-all duration-200"
                     placeholder="e.g., Appointment Reminder"
                     disabled={sendingNotification}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-[#444444] mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Message
                   </label>
                   <textarea
@@ -1705,7 +1338,7 @@ export default function Dashboard() {
                         message: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 border-2 border-[#e5e5e5] rounded-lg bg-white text-[#444444] focus:outline-none focus:border-[#c1a57d]"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#c1a57d]/50 focus:border-[#c1a57d] transition-all duration-200 resize-none"
                     placeholder="e.g., Your appointment is tomorrow at 2 PM. Please don't forget to bring your medication list."
                     disabled={sendingNotification}
                   />
@@ -1719,14 +1352,14 @@ export default function Dashboard() {
                     setShowNotificationModal(false);
                     setNotificationForm({ title: "", message: "" });
                   }}
-                  className="flex-1 px-4 py-2 border-2 border-[#e5e5e5] rounded-lg text-[#444444] font-semibold hover:bg-[#f4f4f4] transition"
+                  className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all duration-200"
                   disabled={sendingNotification}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={sendNotification}
-                  className="flex-1 px-4 py-2 bg-[#c1a57d] hover:bg-[#a89267] text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] hover:from-[#b39a6d] hover:to-[#a89267] text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={
                     sendingNotification ||
                     !notificationForm.title ||
@@ -1744,7 +1377,7 @@ export default function Dashboard() {
       {/* CSV Import Modal */}
       {showCSVImport && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
           onClick={() => {
             if (!importingCSV) {
               setShowCSVImport(false);
@@ -1754,11 +1387,11 @@ export default function Dashboard() {
           }}
         >
           <div
-            className="bg-white rounded-xl max-w-lg w-full border border-[#e5e5e5]"
+            className="bg-white rounded-2xl max-w-lg w-full shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-[#e5e5e5] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#444444]">
+            <div className="p-6 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-800">
                 Import Patients from CSV
               </h2>
               <button
@@ -1769,24 +1402,26 @@ export default function Dashboard() {
                     setImportResults(null);
                   }
                 }}
-                className="text-[#888888] hover:text-[#444444] text-2xl font-bold"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-all duration-200"
                 disabled={importingCSV}
               >
-                ×
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="px-6 pb-6">
               {!importResults ? (
                 <>
-                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h3 className="font-semibold text-[#444444] mb-2">
+                  <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                    <h3 className="font-semibold text-gray-800 mb-2">
                       CSV Format:
                     </h3>
-                    <p className="text-sm text-[#888888] mb-2">
+                    <p className="text-sm text-gray-600 mb-3">
                       Your CSV file should have 3 columns: name, email, password
                     </p>
-                    <div className="bg-white p-2 rounded border border-[#e5e5e5] font-mono text-xs">
+                    <div className="bg-white p-3 rounded-lg border border-gray-200 font-mono text-xs text-gray-700">
                       name,email,password
                       <br />
                       John Doe,john@example.com,password123
@@ -1795,15 +1430,15 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-[#444444] mb-2">
+                  <div className="mb-5">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Select CSV File
                     </label>
                     <input
                       type="file"
                       accept=".csv"
                       onChange={(e) => setCSVFile(e.target.files?.[0] || null)}
-                      className="w-full px-4 py-2 border-2 border-[#e5e5e5] rounded-lg bg-white text-[#444444] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#c1a57d] file:text-white file:font-semibold hover:file:bg-[#a89267]"
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gradient-to-r file:from-[#c1a57d] file:to-[#b39a6d] file:text-white file:font-medium hover:file:from-[#b39a6d] hover:file:to-[#a89267] file:transition-all file:duration-200"
                       disabled={importingCSV}
                     />
                   </div>
@@ -1815,14 +1450,14 @@ export default function Dashboard() {
                         setShowCSVImport(false);
                         setCSVFile(null);
                       }}
-                      className="flex-1 px-4 py-2 border-2 border-[#e5e5e5] rounded-lg text-[#444444] font-semibold hover:bg-[#f4f4f4] transition"
+                      className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all duration-200"
                       disabled={importingCSV}
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleCSVImport}
-                      className="flex-1 px-4 py-2 bg-[#c1a57d] hover:bg-[#a89267] text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] hover:from-[#b39a6d] hover:to-[#a89267] text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={!csvFile || importingCSV}
                     >
                       {importingCSV ? "Importing..." : "Import Patients"}
@@ -1831,12 +1466,12 @@ export default function Dashboard() {
                 </>
               ) : (
                 <>
-                  <div className="mb-4">
-                    <h3 className="font-semibold text-[#444444] mb-3">
+                  <div className="mb-5">
+                    <h3 className="font-semibold text-gray-800 mb-4">
                       Import Results
                     </h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center p-4 bg-green-50 border border-green-200 rounded-xl">
                         <span className="font-semibold text-green-800">
                           Successful
                         </span>
@@ -1844,7 +1479,7 @@ export default function Dashboard() {
                           {importResults.success}
                         </span>
                       </div>
-                      <div className="flex justify-between items-center p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex justify-between items-center p-4 bg-red-50 border border-red-200 rounded-xl">
                         <span className="font-semibold text-red-800">
                           Failed
                         </span>
@@ -1855,15 +1490,15 @@ export default function Dashboard() {
                     </div>
 
                     {importResults.errors.length > 0 && (
-                      <div className="mt-4 max-h-40 overflow-y-auto">
-                        <h4 className="font-semibold text-[#444444] mb-2 text-sm">
+                      <div className="mt-5 max-h-40 overflow-y-auto">
+                        <h4 className="font-semibold text-gray-800 mb-3 text-sm">
                           Errors:
                         </h4>
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           {importResults.errors.map((error, idx) => (
                             <div
                               key={idx}
-                              className="text-xs text-red-600 bg-red-50 p-2 rounded"
+                              className="text-xs text-red-700 bg-red-50 border border-red-200 p-2.5 rounded-lg"
                             >
                               {error}
                             </div>
@@ -1880,7 +1515,7 @@ export default function Dashboard() {
                       setImportResults(null);
                       loadDoctorData(); // Refresh patient list
                     }}
-                    className="w-full px-4 py-2 bg-[#c1a57d] hover:bg-[#a89267] text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition"
+                    className="w-full px-4 py-2.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] hover:from-[#b39a6d] hover:to-[#a89267] text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all duration-200"
                   >
                     Close
                   </button>
