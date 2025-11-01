@@ -23,6 +23,7 @@ export default function WeekReviewPage() {
   const [weekTab, setWeekTab] = useState<"entries" | "analytics" | "mood" | "suggestions">("entries");
   const [weekSearchQuery, setWeekSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
 
   useEffect(() => {
     loadWeekData();
@@ -122,8 +123,21 @@ export default function WeekReviewPage() {
     const medications = new Map<string, number>();
     const moodScores: number[] = [];
     const emotions = new Map<string, number>();
+    let crisisDetected = false;
+    const crisisKeywords = ["suicide", "suicidal", "kill myself", "end my life", "want to die", "no reason to live"];
 
     entries.forEach((entry) => {
+      // Check for crisis indicators
+      const content = entry.entryType === "diary" && entry.summary
+        ? entry.summary.toLowerCase()
+        : entry.entryType === "note" && entry.content
+        ? entry.content.toLowerCase()
+        : "";
+
+      if (crisisKeywords.some(keyword => content.includes(keyword))) {
+        crisisDetected = true;
+      }
+
       if (entry.entryType === "diary" && entry.extractedData) {
         entry.extractedData.symptoms?.forEach((symptom: any) => {
           const count = symptoms.get(symptom.name) || 0;
@@ -158,7 +172,159 @@ export default function WeekReviewPage() {
       topSymptoms: Array.from(symptoms.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5),
       topMedications: Array.from(medications.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5),
       topEmotions: Array.from(emotions.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5),
+      crisisDetected,
     };
+  };
+
+  const getMoodColor = (score: number) => {
+    if (score >= 8) return { bg: "bg-green-100", text: "text-green-800", label: "Excellent", emoji: "😊" };
+    if (score >= 6) return { bg: "bg-blue-100", text: "text-blue-800", label: "Good", emoji: "😐" };
+    if (score >= 4) return { bg: "bg-yellow-100", text: "text-yellow-800", label: "Fair", emoji: "😔" };
+    if (score >= 2) return { bg: "bg-orange-100", text: "text-orange-800", label: "Poor", emoji: "😟" };
+    return { bg: "bg-red-100", text: "text-red-800", label: "Critical", emoji: "😢" };
+  };
+
+  const exportWeeklySummary = () => {
+    const analytics = getWeekAnalytics(weekData?.entries || []);
+    const avgMoodNum = parseFloat(analytics.avgMood);
+    const moodInfo = !isNaN(avgMoodNum) ? getMoodColor(avgMoodNum) : null;
+
+    // Build clinical recommendations section
+    let clinicalRecommendations = '';
+
+    if (analytics.crisisDetected) {
+      clinicalRecommendations += `
+[ALERT] IMMEDIATE ACTION REQUIRED - Crisis Indicators Detected
+
+Patient has expressed suicidal ideation or severe psychological distress.
+Contact patient immediately and provide crisis intervention resources.
+
+Crisis Resources:
+  • 988 - Suicide & Crisis Lifeline (24/7 support)
+  • 741741 - Crisis Text Line (Text HOME)
+  • 911 - For immediate life-threatening emergencies
+
+Consider arranging urgent psychiatric evaluation or emergency department referral
+if patient is in immediate danger.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+    }
+
+    if (avgMoodNum < 5 && !analytics.crisisDetected) {
+      clinicalRecommendations += `
+[CLINICAL] Mood Score Below Baseline (${analytics.avgMood}/10)
+
+Recommended Actions:
+  • Schedule follow-up clinical assessment within 1-2 weeks
+  • Review current treatment plan effectiveness
+  • Consider referral to mental health specialist if sustained decline
+  • Assess need for care coordination or case management
+
+`;
+    }
+
+    if (analytics.topSymptoms.length > 2) {
+      clinicalRecommendations += `
+[CLINICAL] Multiple Symptoms Documented (${analytics.topSymptoms.length} distinct symptoms)
+
+Top symptoms: ${analytics.topSymptoms.slice(0, 3).map(([s]) => s).join(", ")}
+
+Clinical Recommendations:
+  • Conduct comprehensive symptom review and physical examination
+  • Consider differential diagnosis and appropriate diagnostic workup
+  • Evaluate for symptom clustering or underlying conditions
+  • Document symptom progression and treatment response
+
+`;
+    }
+
+    if (analytics.topMedications.length > 0) {
+      clinicalRecommendations += `
+[MEDICATION] References Noted (${analytics.topMedications.length} medication(s) mentioned)
+
+Medication Review Protocol:
+  • Verify current medication list and reconcile with patient report
+  • Assess medication adherence and identify barriers
+  • Screen for adverse effects, drug interactions, or contraindications
+  • Review dosing appropriateness and therapeutic effectiveness
+
+`;
+    }
+
+    if (weekData.entries.length < 2) {
+      clinicalRecommendations += `
+[ENGAGEMENT] Limited Patient Engagement (${weekData.entries.length} ${weekData.entries.length === 1 ? 'entry' : 'entries'} recorded)
+
+Engagement Strategies:
+  • Discuss barriers to consistent health journaling during next visit
+  • Reinforce benefits of regular symptom tracking for care optimization
+  • Consider simplified journaling approach or alternative monitoring methods
+  • Assess patient's understanding and comfort with digital health tools
+
+`;
+    }
+
+    if (avgMoodNum >= 7 && weekData.entries.length >= 5) {
+      clinicalRecommendations += `
+[POSITIVE] Clinical Trajectory (Mood: ${analytics.avgMood}/10, ${weekData.entries.length} entries)
+
+Maintenance Plan:
+  • Continue current treatment regimen and monitoring schedule
+  • Reinforce patient engagement and self-management behaviors
+  • Consider reducing visit frequency if sustained improvement continues
+  • Document factors contributing to positive outcomes for future reference
+
+`;
+    }
+
+    const summaryText = `
+THEO HEALTH - WEEKLY SUMMARY
+${weekData?.weekLabel}
+Patient: ${patient?.name}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OVERVIEW
+Total Entries: ${analytics.totalEntries}
+Average Mood: ${analytics.avgMood}/10 ${moodInfo ? `(${moodInfo.label})` : ''}
+Engagement: ${Math.round((analytics.totalEntries / 7) * 10) / 10} entries per day
+
+${analytics.topSymptoms.length > 0 ? `
+SYMPTOMS (Top ${analytics.topSymptoms.length})
+${analytics.topSymptoms.map(([symptom, count]) => `  • ${symptom}: ${count} time${count > 1 ? 's' : ''}`).join('\n')}
+` : ''}${analytics.topMedications.length > 0 ? `
+MEDICATIONS MENTIONED
+${analytics.topMedications.map(([med, count]) => `  • ${med}: ${count} time${count > 1 ? 's' : ''}`).join('\n')}
+` : ''}${analytics.topEmotions.length > 0 ? `
+EMOTIONS
+${analytics.topEmotions.map(([emotion, count]) => `  • ${emotion}: ${count} time${count > 1 ? 's' : ''}`).join('\n')}
+` : ''}${clinicalRecommendations ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CLINICAL RECOMMENDATIONS
+
+IMPORTANT: These suggestions are for professional review only. This platform
+is designed to track and summarize patient data, NOT to provide counseling
+or therapeutic intervention. For urgent mental health needs, patients should
+be directed to appropriate crisis resources and professional care.
+${clinicalRecommendations}` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Generated by Theo Health
+${new Date().toLocaleDateString()}
+    `.trim();
+
+    // Create blob and download
+    const blob = new Blob([summaryText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${patient?.name.replace(/\s+/g, '_')}_Week_${weekData?.weekLabel.replace(/\s+/g, '_')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -192,24 +358,59 @@ export default function WeekReviewPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex flex-col">
+      {/* Crisis Alert Banner */}
+      {analytics.crisisDetected && (
+        <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center w-12 h-12 bg-white/20 rounded-full flex-shrink-0">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-lg mb-1">Crisis Indicators Detected</h3>
+              <p className="text-sm text-red-100">
+                This patient has expressed suicidal ideation or severe distress. Immediate intervention recommended.
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-semibold text-sm">Crisis Resources:</p>
+              <p className="text-sm">988 - Suicide & Crisis Lifeline</p>
+              <p className="text-sm">Text HOME to 741741</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sticky Header */}
       <div className="bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-200">
         <div className="px-8 py-6 flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-semibold text-gray-800 mb-1 flex items-center gap-3">
-              📅 {weekData.weekLabel}
+            <h2 className="text-3xl font-semibold text-gray-800 mb-1">
+              {weekData.weekLabel}
             </h2>
             <p className="text-base text-gray-500">{patient.name}'s Weekly Summary</p>
           </div>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all duration-200 flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Dashboard
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={exportWeeklySummary}
+              className="px-5 py-2.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] hover:from-[#b39a6d] hover:to-[#a89267] text-white rounded-xl font-medium transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export Summary
+            </button>
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all duration-200 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -221,7 +422,7 @@ export default function WeekReviewPage() {
                 weekTab === "entries" ? "text-[#c1a57d]" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              📝 Entries ({weekData.entries.length})
+              Entries ({weekData.entries.length})
               {weekTab === "entries" && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d]"></div>
               )}
@@ -232,7 +433,7 @@ export default function WeekReviewPage() {
                 weekTab === "analytics" ? "text-[#c1a57d]" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              📊 Analytics
+              Analytics
               {weekTab === "analytics" && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d]"></div>
               )}
@@ -243,7 +444,7 @@ export default function WeekReviewPage() {
                 weekTab === "mood" ? "text-[#c1a57d]" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              😊 Mood Trends
+              Mood Trends
               {weekTab === "mood" && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d]"></div>
               )}
@@ -254,7 +455,7 @@ export default function WeekReviewPage() {
                 weekTab === "suggestions" ? "text-[#c1a57d]" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              💡 Suggestions
+              Suggestions
               {weekTab === "suggestions" && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#c1a57d] to-[#b39a6d]"></div>
               )}
@@ -301,32 +502,19 @@ export default function WeekReviewPage() {
                   return content?.toLowerCase().includes(searchLower);
                 })
                 .map((entry) => {
-                  const moodEmoji =
-                    entry.entryType === "diary" && entry.extractedData?.moods?.score
-                      ? entry.extractedData.moods.score >= 8
-                        ? "😊"
-                        : entry.extractedData.moods.score >= 6
-                        ? "😐"
-                        : entry.extractedData.moods.score >= 4
-                        ? "😔"
-                        : "😢"
-                      : "📝";
-
                   return (
                     <div
                       key={entry.id}
-                      className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all duration-200 border border-gray-100"
+                      className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-500 ease-out border border-gray-100 cursor-pointer group flex flex-col"
+                      onClick={() => setSelectedEntry(entry)}
                     >
                       {/* Header */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <span className="text-3xl">{moodEmoji}</span>
-                          <div>
-                            <p className="text-xs font-medium text-gray-500">{formatDateTime(entry.createdAt)}</p>
-                            {entry.entryType === "diary" && entry.extractedData?.moods?.overall && (
-                              <p className="text-sm font-semibold text-[#c1a57d]">{entry.extractedData.moods.overall}</p>
-                            )}
-                          </div>
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="text-base font-semibold text-gray-800 mb-1">{formatDateTime(entry.createdAt)}</h3>
+                          {entry.entryType === "diary" && entry.extractedData?.moods?.overall && (
+                            <p className="text-sm text-gray-600 capitalize">{entry.extractedData.moods.overall}</p>
+                          )}
                         </div>
                         {entry.entryType === "diary" && entry.extractedData?.moods?.score && (
                           <span className="px-3 py-1.5 bg-gradient-to-r from-[#c1a57d]/10 to-[#b39a6d]/10 text-[#c1a57d] text-sm font-semibold rounded-full">
@@ -335,8 +523,8 @@ export default function WeekReviewPage() {
                         )}
                       </div>
 
-                      {/* Content */}
-                      <p className="text-gray-700 leading-relaxed text-sm mb-4 line-clamp-3">
+                      {/* Content Preview */}
+                      <p className="text-gray-700 leading-relaxed text-sm mb-4 line-clamp-3 flex-grow">
                         {entry.entryType === "diary" && entry.summary
                           ? entry.summary
                           : entry.entryType === "note" && entry.content
@@ -345,31 +533,31 @@ export default function WeekReviewPage() {
                       </p>
 
                       {/* Tags */}
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 mb-3">
                         {entry.entryType === "diary" && entry.extractedData && (
                           <>
                             {entry.extractedData?.symptoms?.slice(0, 2).map((symptom: any, idx: number) => (
                               <span
                                 key={idx}
-                                className="px-2.5 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-lg flex items-center gap-1"
+                                className="px-2.5 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-lg capitalize"
                               >
-                                🩺 {symptom.name}
+                                {symptom.name}
                               </span>
                             ))}
                             {entry.extractedData?.medications?.slice(0, 2).map((med: any, idx: number) => (
                               <span
                                 key={idx}
-                                className="px-2.5 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-lg flex items-center gap-1"
+                                className="px-2.5 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-lg capitalize"
                               >
-                                💊 {med.name}
+                                {med.name}
                               </span>
                             ))}
                             {entry.extractedData?.moods?.emotions?.slice(0, 2).map((emotion: string, idx: number) => (
                               <span
                                 key={idx}
-                                className="px-2.5 py-1 bg-purple-50 text-purple-700 text-xs font-medium rounded-lg flex items-center gap-1"
+                                className="px-2.5 py-1 bg-purple-50 text-purple-700 text-xs font-medium rounded-lg capitalize"
                               >
-                                💭 {emotion}
+                                {emotion}
                               </span>
                             ))}
                             {(entry.extractedData?.symptoms && entry.extractedData.symptoms.length > 2) ||
@@ -387,6 +575,14 @@ export default function WeekReviewPage() {
                           </span>
                         )}
                       </div>
+
+                      {/* Click button - always at bottom */}
+                      <button className="mt-auto pt-3 border-t border-gray-100 w-full text-center text-xs text-gray-400 group-hover:text-[#c1a57d] transition-colors duration-500 flex items-center justify-center gap-2">
+                        <span>Click to view full entry</span>
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
                     </div>
                   );
                 })}
@@ -423,101 +619,267 @@ export default function WeekReviewPage() {
         )}
 
         {weekTab === "analytics" && (
-          <div className="max-w-5xl mx-auto space-y-10">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-all duration-300">
-                <p className="text-sm font-medium text-gray-500 mb-3">Total Entries</p>
-                <p className="text-5xl font-bold bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] bg-clip-text text-transparent">
-                  {analytics.totalEntries}
-                </p>
-              </div>
-              <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-all duration-300">
-                <p className="text-sm font-medium text-gray-500 mb-3">Average Mood</p>
-                <p className="text-5xl font-bold bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] bg-clip-text text-transparent">
-                  {analytics.avgMood}/10
-                </p>
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Clinical Summary Header */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Clinical Summary</h3>
+              <div className="grid grid-cols-4 gap-6">
+                <div className="border-l-4 border-gray-400 pl-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Entries</p>
+                  <p className="text-2xl font-bold text-gray-900">{analytics.totalEntries}</p>
+                  <p className="text-xs text-gray-500 mt-1">{Math.round((analytics.totalEntries / 7) * 10) / 10}/day avg</p>
+                </div>
+                <div className={`border-l-4 pl-4 ${
+                  !isNaN(parseFloat(analytics.avgMood))
+                    ? parseFloat(analytics.avgMood) >= 7 ? 'border-green-500'
+                      : parseFloat(analytics.avgMood) >= 5 ? 'border-yellow-500'
+                      : 'border-red-500'
+                    : 'border-gray-400'
+                }`}>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Mood Score</p>
+                  <p className="text-2xl font-bold text-gray-900">{analytics.avgMood}<span className="text-base text-gray-500">/10</span></p>
+                  <p className="text-xs text-gray-500 mt-1">{!isNaN(parseFloat(analytics.avgMood)) ? getMoodColor(parseFloat(analytics.avgMood)).label : 'N/A'}</p>
+                </div>
+                <div className={`border-l-4 pl-4 ${analytics.topSymptoms.length > 3 ? 'border-red-500' : analytics.topSymptoms.length > 0 ? 'border-yellow-500' : 'border-green-500'}`}>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Symptoms</p>
+                  <p className="text-2xl font-bold text-gray-900">{analytics.topSymptoms.length}</p>
+                  <p className="text-xs text-gray-500 mt-1">distinct reported</p>
+                </div>
+                <div className="border-l-4 border-blue-500 pl-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Medications</p>
+                  <p className="text-2xl font-bold text-gray-900">{analytics.topMedications.length}</p>
+                  <p className="text-xs text-gray-500 mt-1">referenced</p>
+                </div>
               </div>
             </div>
 
-            {analytics.topSymptoms.length > 0 && (
-              <div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Most Frequent Symptoms</h3>
-                <div className="space-y-4">
-                  {analytics.topSymptoms.map(([symptom, count], index) => (
-                    <div
-                      key={symptom}
-                      className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 flex justify-between items-center"
-                    >
-                      <span className="font-medium text-gray-800 capitalize text-lg">{symptom}</span>
-                      <span className="px-4 py-2 bg-gradient-to-r from-red-400 to-red-500 text-white text-sm font-bold rounded-full shadow-sm">
-                        {count} times
-                      </span>
+            {/* Two Column Layout */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* Left Column: Symptoms & Medications */}
+              <div className="space-y-6">
+                {analytics.topSymptoms.length > 0 && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-5">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3 uppercase tracking-wide">Symptom Frequency</h4>
+                    <div className="space-y-2">
+                      {analytics.topSymptoms.map(([symptom, count]) => (
+                        <div key={symptom} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                          <span className="text-sm text-gray-700 capitalize font-medium">{symptom}</span>
+                          <span className="text-sm font-semibold text-gray-900">{count}x</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                )}
 
-            {analytics.topMedications.length > 0 && (
-              <div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Medications Mentioned</h3>
-                <div className="space-y-4">
-                  {analytics.topMedications.map(([med, count], index) => (
-                    <div
-                      key={med}
-                      className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 flex justify-between items-center"
-                    >
-                      <span className="font-medium text-gray-800 text-lg">{med}</span>
-                      <span className="px-4 py-2 bg-gradient-to-r from-green-400 to-green-500 text-white text-sm font-bold rounded-full shadow-sm">
-                        {count} times
-                      </span>
+                {analytics.topMedications.length > 0 && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-5">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3 uppercase tracking-wide">Medication References</h4>
+                    <div className="space-y-2">
+                      {analytics.topMedications.map(([med, count]) => (
+                        <div key={med} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                          <span className="text-sm text-gray-700 font-medium">{med}</span>
+                          <span className="text-sm font-semibold text-gray-900">{count}x</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Right Column: Mood Trends */}
+              <div className="space-y-6">
+                {analytics.moodScores.length > 0 && (() => {
+                  // Calculate daily averages for the week
+                  const weekStartDate = weekData.startDate;
+                  const dailyMoods: { [key: number]: number[] } = {}; // key is day index (0-6)
+
+                  // Group mood scores by day of week
+                  weekData.entries.forEach((entry) => {
+                    if (entry.entryType === 'diary' && entry.extractedData?.moods?.score) {
+                      const entryDate = entry.createdAt?.toDate ? entry.createdAt.toDate() : new Date();
+                      const daysDiff = Math.floor((entryDate.getTime() - weekStartDate.getTime()) / (1000 * 60 * 60 * 24));
+
+                      if (daysDiff >= 0 && daysDiff < 7) {
+                        if (!dailyMoods[daysDiff]) {
+                          dailyMoods[daysDiff] = [];
+                        }
+                        dailyMoods[daysDiff].push(entry.extractedData.moods.score);
+                      }
+                    }
+                  });
+
+                  // Calculate averages for each day (0-6 for the week)
+                  const dailyAverages = Array.from({ length: 7 }, (_, dayIndex) => {
+                    const scores = dailyMoods[dayIndex];
+                    if (scores && scores.length > 0) {
+                      return scores.reduce((a, b) => a + b, 0) / scores.length;
+                    }
+                    return null;
+                  });
+
+                  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                  const weekStartDay = weekStartDate.getDay();
+
+                  return (
+                    <div className="bg-white border border-gray-200 rounded-lg p-5">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">Weekly Mood Chart</h4>
+                      <div className="flex gap-6">
+                        {/* Y-axis */}
+                        <div className="flex flex-col justify-between text-xs text-gray-500 font-medium py-2">
+                          <span>10</span>
+                          <span>8</span>
+                          <span>6</span>
+                          <span>4</span>
+                          <span>2</span>
+                          <span>0</span>
+                        </div>
+
+                        {/* Chart Area */}
+                        <div className="flex-1">
+                          <div className="relative h-48 border-l-2 border-b-2 border-gray-300">
+                            {/* Horizontal grid lines */}
+                            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                              {[10, 8, 6, 4, 2, 0].map((val) => (
+                                <div key={val} className="border-t border-gray-100"></div>
+                              ))}
+                            </div>
+
+                            {/* Bars */}
+                            <div className="absolute inset-0 flex items-end gap-2 px-2 pb-2">
+                              {dailyAverages.map((avgScore, dayIndex) => {
+                                const actualDayIndex = (weekStartDay + dayIndex) % 7;
+                                const dayName = days[actualDayIndex];
+
+                                return (
+                                  <div key={dayIndex} className="flex-1 flex flex-col items-center justify-end h-full relative group">
+                                    <div className="w-full flex items-end justify-center h-full">
+                                      {avgScore !== null ? (
+                                        <>
+                                          {/* Tooltip */}
+                                          <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
+                                            {dayName}: {avgScore.toFixed(1)}/10
+                                          </div>
+                                          {/* Bar */}
+                                          <div
+                                            className={`w-full rounded-t-sm transition-all cursor-pointer ${
+                                              avgScore >= 7 ? 'bg-green-200 hover:bg-green-300' : avgScore >= 5 ? 'bg-blue-200 hover:bg-blue-300' : avgScore >= 3 ? 'bg-yellow-200 hover:bg-yellow-300' : 'bg-red-200 hover:bg-red-300'
+                                            }`}
+                                            style={{ height: `${(avgScore / 10) * 100}%`, minHeight: '2px' }}
+                                          ></div>
+                                        </>
+                                      ) : (
+                                        <>
+                                          {/* Tooltip for no data */}
+                                          <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
+                                            {dayName}: No data
+                                          </div>
+                                          {/* Empty bar */}
+                                          <div className="w-full h-1 bg-gray-100 hover:bg-gray-200 rounded cursor-pointer"></div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* X-axis labels */}
+                          <div className="flex gap-2 mt-2 px-2">
+                            {dailyAverages.map((_, dayIndex) => {
+                              const actualDayIndex = (weekStartDay + dayIndex) % 7;
+                              const dayName = days[actualDayIndex];
+
+                              return (
+                                <div key={dayIndex} className="flex-1 text-center">
+                                  <span className="text-xs text-gray-600 font-medium">{dayName}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {analytics.topEmotions.length > 0 && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-5">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3 uppercase tracking-wide">Emotional State</h4>
+                    <div className="space-y-2">
+                      {analytics.topEmotions.slice(0, 5).map(([emotion, count]) => (
+                        <div key={emotion} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                          <span className="text-sm text-gray-700 capitalize font-medium">{emotion}</span>
+                          <span className="text-sm font-semibold text-gray-900">{count}x</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
         {weekTab === "mood" && (
-          <div className="max-w-5xl mx-auto space-y-10">
-            <div className="bg-white rounded-2xl p-10 shadow-sm text-center">
-              <p className="text-sm font-medium text-gray-500 mb-4">Average Mood Score</p>
-              <p className="text-7xl font-bold bg-gradient-to-r from-[#c1a57d] to-[#b39a6d] bg-clip-text text-transparent mb-4">
-                {analytics.avgMood}
-              </p>
-              <p className="text-base text-gray-500">{weekData.entries.length} entries recorded this week</p>
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Mood Analysis Grid */}
+            <div className="grid grid-cols-3 gap-6">
+              <div className="bg-white border border-gray-200 rounded-lg p-5">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Average Score</p>
+                <p className="text-4xl font-bold text-gray-900 mb-2">{analytics.avgMood}<span className="text-xl text-gray-500">/10</span></p>
+                <p className="text-sm text-gray-600">{!isNaN(parseFloat(analytics.avgMood)) ? getMoodColor(parseFloat(analytics.avgMood)).label : 'N/A'}</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-lg p-5">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Range</p>
+                <p className="text-4xl font-bold text-gray-900 mb-2">
+                  {analytics.moodScores.length > 0 ? Math.min(...analytics.moodScores) : 0}-{analytics.moodScores.length > 0 ? Math.max(...analytics.moodScores) : 0}
+                </p>
+                <p className="text-sm text-gray-600">Min-Max</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-lg p-5">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Variability</p>
+                <p className="text-4xl font-bold text-gray-900 mb-2">
+                  {analytics.moodScores.length > 0 ? Math.max(...analytics.moodScores) - Math.min(...analytics.moodScores) : 0}
+                </p>
+                <p className="text-sm text-gray-600">Point spread</p>
+              </div>
             </div>
 
-            {analytics.topEmotions.length > 0 && (
-              <div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Most Common Emotions</h3>
-                <div className="grid grid-cols-2 gap-5">
-                  {analytics.topEmotions.map(([emotion, count]) => (
-                    <div key={emotion} className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-all duration-300">
-                      <p className="text-2xl font-bold text-[#c1a57d] capitalize mb-2">{emotion}</p>
-                      <p className="text-base text-gray-500">{count} times this week</p>
+            {/* Mood Timeline */}
+            {analytics.moodScores.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h4 className="text-sm font-semibold text-gray-900 mb-6 uppercase tracking-wide">Weekly Mood Timeline</h4>
+                <div className="space-y-3">
+                  {analytics.moodScores.map((score, idx) => (
+                    <div key={idx} className="flex items-center gap-4">
+                      <span className="text-xs text-gray-500 font-medium w-12">Entry {idx + 1}</span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-2 relative">
+                        <div
+                          className={`h-2 rounded-full ${
+                            score >= 7 ? 'bg-green-500' : score >= 5 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${(score / 10) * 100}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900 w-12">{score}/10</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {analytics.moodScores.length > 0 && (
-              <div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Daily Mood Scores</h3>
-                <div className="bg-white rounded-2xl p-8 shadow-sm">
-                  <div className="flex items-end gap-3 h-64">
-                    {analytics.moodScores.map((score, idx) => (
-                      <div key={idx} className="flex-1 flex flex-col items-center justify-end">
-                        <div
-                          className="w-full bg-gradient-to-t from-[#c1a57d] to-[#d4c3a8] rounded-t-lg transition-all duration-500 hover:opacity-80"
-                          style={{ height: `${(score / 10) * 100}%` }}
-                        ></div>
-                        <span className="text-sm text-gray-500 mt-3 font-medium">{score}</span>
-                      </div>
-                    ))}
-                  </div>
+            {/* Emotional Profile */}
+            {analytics.topEmotions.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h4 className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">Emotional Profile</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  {analytics.topEmotions.map(([emotion, count]) => (
+                    <div key={emotion} className="border border-gray-200 rounded p-3">
+                      <p className="text-sm font-semibold text-gray-900 capitalize">{emotion}</p>
+                      <p className="text-xs text-gray-500 mt-1">{count} occurrences</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -525,103 +887,260 @@ export default function WeekReviewPage() {
         )}
 
         {weekTab === "suggestions" && (
-          <div className="max-w-5xl mx-auto space-y-8">
-            <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl p-8 shadow-lg">
-              <h3 className="text-2xl font-bold bg-gradient-to-r from-[#c1a57d] to-[#a89267] bg-clip-text text-transparent mb-3">
-                💡 AI-Powered Suggestions
-              </h3>
-              <p className="text-base text-gray-600 leading-relaxed">
-                Based on this week's entries, here are some recommendations:
-              </p>
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Clinical Action Items Header */}
+            <div className="bg-white border border-gray-200 rounded-lg p-5">
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-2">Clinical Action Items</h3>
+              <p className="text-sm text-gray-600">Evidence-based recommendations for professional review and action.</p>
             </div>
 
-            {parseFloat(analytics.avgMood) < 5 && (
-              <div className="bg-gradient-to-br from-white to-amber-50 rounded-2xl p-8 shadow-md hover:shadow-xl transition-all duration-300">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <span className="text-2xl">⚠️</span>
-                  </div>
+            {/* Crisis Alert - Compact */}
+            {analytics.crisisDetected && (
+              <div className="bg-red-50 border-l-4 border-red-600 p-4">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
                   <div className="flex-1">
-                    <h4 className="text-xl font-bold text-gray-800 mb-2">Low Mood Alert</h4>
-                    <p className="text-base text-gray-600 leading-relaxed">
-                      The average mood score this week is {analytics.avgMood}/10. Consider scheduling a follow-up
-                      appointment to discuss mental health support options.
-                    </p>
+                    <h4 className="text-sm font-bold text-red-900 mb-1">CRISIS - Immediate Action Required</h4>
+                    <p className="text-sm text-red-800 mb-2">Patient expressed suicidal ideation. Contact immediately and provide crisis resources.</p>
+                    <div className="flex gap-4 text-xs">
+                      <span className="font-mono font-semibold">988 - Crisis Lifeline</span>
+                      <span className="font-mono font-semibold">741741 - Text HOME</span>
+                      <span className="font-mono font-semibold">911 - Emergency</span>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {analytics.topSymptoms.length > 2 && (
-              <div className="bg-gradient-to-br from-white to-red-50 rounded-2xl p-8 shadow-md hover:shadow-xl transition-all duration-300">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <span className="text-2xl">🏥</span>
+            {/* Clinical Recommendations Grid */}
+            <div className="grid grid-cols-2 gap-6">
+              {parseFloat(analytics.avgMood) < 5 && !analytics.crisisDetected && (
+                <div className="bg-white border border-yellow-300 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-900">Low Mood Alert</h4>
+                    <span className="text-xs font-medium text-yellow-700 bg-yellow-100 px-2 py-1 rounded">REVIEW</span>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-xl font-bold text-gray-800 mb-2">Multiple Symptoms Reported</h4>
-                    <p className="text-base text-gray-600 leading-relaxed">
-                      Patient reported {analytics.topSymptoms.length} different symptoms this week. Review symptom
-                      patterns and consider diagnostic evaluation.
-                    </p>
+                  <p className="text-sm text-gray-700 mb-3">Weekly average: {analytics.avgMood}/10</p>
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-gray-600">• Schedule follow-up within 1-2 weeks</p>
+                    <p className="text-xs text-gray-600">• Review treatment plan effectiveness</p>
+                    <p className="text-xs text-gray-600">• Consider MH specialist referral if decline persists</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {analytics.topMedications.length > 0 && (
-              <div className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl p-8 shadow-md hover:shadow-xl transition-all duration-300">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <span className="text-2xl">💊</span>
+              {analytics.topSymptoms.length > 2 && (
+                <div className="bg-white border border-red-300 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-900">Multiple Symptoms</h4>
+                    <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded">ACTION</span>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-xl font-bold text-gray-800 mb-2">Medication Tracking</h4>
-                    <p className="text-base text-gray-600 leading-relaxed">
-                      Patient mentioned {analytics.topMedications.length} medication(s) this week. Verify medication
-                      adherence and check for any side effects.
-                    </p>
+                  <p className="text-sm text-gray-700 mb-3">{analytics.topSymptoms.length} distinct symptoms: {analytics.topSymptoms.slice(0, 3).map(([s]) => s).join(", ")}</p>
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-gray-600">• Comprehensive symptom review needed</p>
+                    <p className="text-xs text-gray-600">• Consider differential diagnosis workup</p>
+                    <p className="text-xs text-gray-600">• Evaluate symptom clustering patterns</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {weekData.entries.length < 2 && (
-              <div className="bg-gradient-to-br from-white to-orange-50 rounded-2xl p-8 shadow-md hover:shadow-xl transition-all duration-300">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <span className="text-2xl">📝</span>
+              {analytics.topMedications.length > 0 && (
+                <div className="bg-white border border-blue-300 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-900">Medication Review</h4>
+                    <span className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded">MONITOR</span>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-xl font-bold text-gray-800 mb-2">Low Engagement</h4>
-                    <p className="text-base text-gray-600 leading-relaxed">
-                      Only {weekData.entries.length} entry this week. Encourage patient to journal more regularly for
-                      better health tracking.
-                    </p>
+                  <p className="text-sm text-gray-700 mb-3">{analytics.topMedications.length} medication(s) referenced in entries</p>
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-gray-600">• Verify current medication list accuracy</p>
+                    <p className="text-xs text-gray-600">• Assess adherence and barriers</p>
+                    <p className="text-xs text-gray-600">• Screen for adverse effects or interactions</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {parseFloat(analytics.avgMood) >= 7 && weekData.entries.length >= 5 && (
-              <div className="bg-gradient-to-br from-white to-emerald-50 rounded-2xl p-8 shadow-md hover:shadow-xl transition-all duration-300">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <span className="text-2xl">✨</span>
+              {weekData.entries.length < 2 && (
+                <div className="bg-white border border-gray-300 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-900">Low Engagement</h4>
+                    <span className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">DISCUSS</span>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-xl font-bold text-gray-800 mb-2">Positive Progress</h4>
-                    <p className="text-base text-gray-600 leading-relaxed">
-                      Excellent! High mood score ({analytics.avgMood}/10) and consistent journaling. Continue current
-                      treatment plan.
-                    </p>
+                  <p className="text-sm text-gray-700 mb-3">{weekData.entries.length} {weekData.entries.length === 1 ? 'entry' : 'entries'} this week</p>
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-gray-600">• Discuss barriers to consistent tracking</p>
+                    <p className="text-xs text-gray-600">• Reinforce benefits of regular monitoring</p>
+                    <p className="text-xs text-gray-600">• Consider simplified tracking approach</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+
+              {parseFloat(analytics.avgMood) >= 7 && weekData.entries.length >= 5 && (
+                <div className="bg-white border border-green-300 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-900">Positive Trajectory</h4>
+                    <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded">STABLE</span>
+                  </div>
+                  <p className="text-sm text-gray-700 mb-3">Mood: {analytics.avgMood}/10 | Engagement: {weekData.entries.length} entries</p>
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-gray-600">• Continue current treatment regimen</p>
+                    <p className="text-xs text-gray-600">• Reinforce engagement behaviors</p>
+                    <p className="text-xs text-gray-600">• Consider reducing visit frequency</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
+
+      {/* Entry Detail Modal */}
+      {selectedEntry && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-8 z-50"
+          onClick={() => setSelectedEntry(null)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-gray-50 to-white p-6 border-b border-gray-200">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#c1a57d] to-[#b39a6d] flex items-center justify-center shadow-md">
+                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-800">Journal Entry</h3>
+                    <p className="text-sm text-gray-500">{formatDateTime(selectedEntry.createdAt)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedEntry(null)}
+                  className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-all duration-300"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-8 overflow-y-auto max-h-[calc(85vh-120px)]">
+              {/* Mood Badge */}
+              {selectedEntry.entryType === "diary" && selectedEntry.extractedData?.moods && (
+                <div className="mb-6 flex items-center gap-3">
+                  {selectedEntry.extractedData.moods.overall && (
+                    <span className="px-4 py-2 bg-gradient-to-r from-[#c1a57d]/10 to-[#b39a6d]/10 text-[#c1a57d] font-semibold rounded-xl capitalize">
+                      {selectedEntry.extractedData.moods.overall}
+                    </span>
+                  )}
+                  {selectedEntry.extractedData.moods.score && (
+                    <span className="px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-xl">
+                      Mood: {selectedEntry.extractedData.moods.score}/10
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* AI Summary */}
+              {selectedEntry.entryType === "diary" && selectedEntry.summary && (
+                <div className="mb-6 bg-blue-50 rounded-xl p-5 border border-blue-100">
+                  <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    AI-Generated Summary
+                  </h4>
+                  <p className="text-gray-700 leading-relaxed">{selectedEntry.summary}</p>
+                </div>
+              )}
+
+              {/* Full Content */}
+              {selectedEntry.entryType === "note" && selectedEntry.content && (
+                <div className="mb-6">
+                  <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Entry Content
+                  </h4>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedEntry.content}</p>
+                </div>
+              )}
+
+              {/* Extracted Data */}
+              {selectedEntry.entryType === "diary" && selectedEntry.extractedData && (
+                <div className="space-y-5">
+                  {/* Symptoms */}
+                  {selectedEntry.extractedData.symptoms && selectedEntry.extractedData.symptoms.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-800 mb-3">
+                        Symptoms Reported
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedEntry.extractedData.symptoms.map((symptom: any, idx: number) => (
+                          <span
+                            key={idx}
+                            className="px-3 py-1.5 bg-red-50 text-red-700 font-medium rounded-lg capitalize border border-red-100"
+                          >
+                            {symptom.name}
+                            {symptom.severity && <span className="text-xs ml-1.5">({symptom.severity})</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Medications */}
+                  {selectedEntry.extractedData.medications && selectedEntry.extractedData.medications.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-800 mb-3">
+                        Medications Mentioned
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedEntry.extractedData.medications.map((med: any, idx: number) => (
+                          <span
+                            key={idx}
+                            className="px-3 py-1.5 bg-green-50 text-green-700 font-medium rounded-lg capitalize border border-green-100"
+                          >
+                            {med.name}
+                            {med.dosage && <span className="text-xs ml-1.5">({med.dosage})</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Emotions */}
+                  {selectedEntry.extractedData.moods?.emotions && selectedEntry.extractedData.moods.emotions.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-800 mb-3">
+                        Emotions Expressed
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedEntry.extractedData.moods.emotions.map((emotion: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="px-3 py-1.5 bg-purple-50 text-purple-700 font-medium rounded-lg capitalize border border-purple-100"
+                          >
+                            {emotion}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
