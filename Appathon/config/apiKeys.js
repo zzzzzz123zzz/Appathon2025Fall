@@ -15,11 +15,11 @@ export const AZURE_SPEECH_KEY = 'your-azure-speech-key-here';
 
 // AssemblyAI API Key for Speech-to-Text (FREE - 5 hours/month)
 // Get your key from: https://www.assemblyai.com/
-export const ASSEMBLYAI_API_KEY = 'your-assemblyai-key-here';
+export const ASSEMBLYAI_API_KEY = '022b81930c464beeb8da87a6b1c40940';
 
 // Google AI API Key for Gemini (FREE - generous limits)
 // Get your key from: https://aistudio.google.com/app/apikey
-export const GOOGLE_AI_API_KEY = 'your-google-ai-key-here';
+export const GOOGLE_AI_API_KEY = 'AIzaSyDDYJqs6JxEIaArgE3GRBRiOpA6B9CWNfg';
 
 // Usage in your code:
 // import { OPENAI_API_KEY } from '../config/apiKeys';
