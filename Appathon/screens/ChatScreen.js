@@ -14,22 +14,17 @@ import { useState, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
+import { getAIChatResponse, getRecentDiaryEntries } from "../services/diaryService";
 
-export default function ChatScreen({ onBack, onFinish }) {
+export default function ChatScreen({ currentUser, onBack, onFinish }) {
   const { theme } = useTheme();
-  const [messages, setMessages] = useState([
-    {
-      id: "ai-initial",
-      text: "Hello! I'm here to listen. How are you feeling today?",
-      sender: "ai",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [textInput, setTextInput] = useState("");
   const scrollViewRef = useRef(null);
   const textInputRef = useRef(null);
   const recordingStartTime = useRef(null);
+  const [initialGreetingSet, setInitialGreetingSet] = useState(false);
 
   // Speech recognition hook
   const {
@@ -43,6 +38,60 @@ export default function ChatScreen({ onBack, onFinish }) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const micButtonScale = useRef(new Animated.Value(1)).current;
   const recordingRipple = useRef(new Animated.Value(0)).current;
+
+  // Generate personalized greeting based on history
+  useEffect(() => {
+    if (!initialGreetingSet && currentUser?.uid) {
+      const generateGreeting = async () => {
+        try {
+          const entriesResult = await getRecentDiaryEntries(currentUser.uid, 10);
+          let greetingText = "Hello! I'm here to listen. How are you feeling today?";
+
+          if (entriesResult.success && entriesResult.data.length > 0) {
+            const entries = entriesResult.data;
+            const latestEntry = entries[0];
+            const data = latestEntry.extractedData;
+
+            // Create personalized greeting based on last entry
+            if (data) {
+              const userName = currentUser.displayName || currentUser.email?.split('@')[0] || '';
+              const greeting = userName ? `Hi ${userName}! ` : "Hello! ";
+
+              if (data.symptoms && data.symptoms.length > 0) {
+                greetingText = `${greeting}Last time you mentioned ${data.symptoms[0].name}. How are you feeling now?`;
+              } else if (data.moods && data.moods.score <= 4) {
+                greetingText = `${greeting}I remember you were having a tough time. How are things today?`;
+              } else if (data.moods && data.moods.score >= 7) {
+                greetingText = `${greeting}You were feeling great last time. How's your day going?`;
+              } else {
+                greetingText = `${greeting}Good to see you again. How are you feeling today?`;
+              }
+            }
+          }
+
+          setMessages([{
+            id: "ai-initial",
+            text: greetingText,
+            sender: "ai",
+            timestamp: new Date(),
+          }]);
+          setInitialGreetingSet(true);
+        } catch (error) {
+          console.error('Error generating greeting:', error);
+          // Fallback to default greeting
+          setMessages([{
+            id: "ai-initial",
+            text: "Hello! I'm here to listen. How are you feeling today?",
+            sender: "ai",
+            timestamp: new Date(),
+          }]);
+          setInitialGreetingSet(true);
+        }
+      };
+
+      generateGreeting();
+    }
+  }, [currentUser, initialGreetingSet]);
 
   // Pulse animation when recording
   useEffect(() => {
@@ -91,82 +140,72 @@ export default function ChatScreen({ onBack, onFinish }) {
     }, 100);
   }, [messages.length]);
 
-  const handleStartRecording = async () => {
-    try {
-      // Record start time
-      recordingStartTime.current = Date.now();
+  const handleToggleRecording = async () => {
+    // If currently recording, stop it
+    if (isRecording) {
+      try {
+        console.log('🎙️ Stopping recording...');
 
-      // Start actual audio recording
-      await startRecording();
+        // Stop recording and get transcription
+        const transcription = await recordAndTranscribe();
+        recordingStartTime.current = null;
 
-      // Haptic feedback animation
-      Animated.sequence([
-        Animated.timing(micButtonScale, {
-          toValue: 0.9,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.spring(micButtonScale, {
-          toValue: 1,
-          tension: 300,
-          friction: 10,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } catch (error) {
-      console.error("Error starting recording:", error);
-      recordingStartTime.current = null;
-      Alert.alert(
-        "Recording Error",
-        "Could not start recording. Please check microphone permissions.",
-        [{ text: "OK" }]
-      );
-    }
-  };
-
-  const handleStopRecording = async () => {
-    try {
-      // Check if recording was held long enough (minimum 500ms)
-      if (recordingStartTime.current) {
-        const duration = Date.now() - recordingStartTime.current;
-        console.log(`🎙️ Recording duration: ${duration}ms`);
-
-        if (duration < 500) {
-          Alert.alert(
-            "Recording Too Short",
-            "Please hold the microphone button for at least 1 second while speaking.",
-            [{ text: "OK" }]
-          );
-          recordingStartTime.current = null;
-          return;
+        if (transcription) {
+          handleSendMessage(transcription);
         }
+      } catch (error) {
+        console.error("Error stopping recording:", error);
+        recordingStartTime.current = null;
+
+        // Provide more specific error messages
+        let errorMessage = "Could not process your message. Please try again.";
+
+        if (error.message.includes("No audio recorded")) {
+          errorMessage = "No audio was recorded. Please try speaking for at least 1 second.";
+        } else if (error.message.includes("permission")) {
+          errorMessage = "Microphone permission is required. Please enable it in your device settings.";
+        }
+
+        Alert.alert(
+          "Recording Error",
+          errorMessage,
+          [{ text: "OK" }]
+        );
       }
+    } else {
+      // Start recording
+      try {
+        console.log('🎙️ Starting recording...');
 
-      // Stop recording and get transcription
-      const transcription = await recordAndTranscribe();
-      recordingStartTime.current = null;
+        // Record start time
+        recordingStartTime.current = Date.now();
 
-      if (transcription) {
-        handleSendMessage(transcription);
+        // Start actual audio recording
+        await startRecording();
+
+        // Haptic feedback animation
+        Animated.sequence([
+          Animated.timing(micButtonScale, {
+            toValue: 0.9,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.spring(micButtonScale, {
+            toValue: 1,
+            tension: 300,
+            friction: 10,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      } catch (error) {
+        console.error("Error starting recording:", error);
+        recordingStartTime.current = null;
+        Alert.alert(
+          "Recording Error",
+          "Could not start recording. Please check microphone permissions.",
+          [{ text: "OK" }]
+        );
       }
-    } catch (error) {
-      console.error("Error stopping recording:", error);
-      recordingStartTime.current = null;
-
-      // Provide more specific error messages
-      let errorMessage = "Could not process your message. Please try again.";
-
-      if (error.message.includes("No audio recorded")) {
-        errorMessage = "No audio was recorded. Please hold the microphone button longer (at least 1 second) and speak clearly.";
-      } else if (error.message.includes("permission")) {
-        errorMessage = "Microphone permission is required. Please enable it in your device settings.";
-      }
-
-      Alert.alert(
-        "Recording Error",
-        errorMessage,
-        [{ text: "OK" }]
-      );
     }
   };
 
@@ -190,30 +229,42 @@ export default function ChatScreen({ onBack, onFinish }) {
       setIsTyping(true);
     }, 800);
 
-    // Simulate AI response (replace with actual AI call later)
-    setTimeout(() => {
-      setIsTyping(false);
+    // Get AI response with health advice
+    setTimeout(async () => {
+      try {
+        // Call AI service to get contextual response with advice
+        const result = await getAIChatResponse(
+          messageText.trim(),
+          currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User',
+          messages,
+          currentUser?.uid
+        );
 
-      const aiResponses = [
-        "I hear you. Can you tell me more about what's been weighing on you most?",
-        "Thank you for sharing that. How does that make you feel?",
-        "That sounds challenging. What do you think would help you feel better?",
-        "I understand. Have you noticed any patterns in when these feelings come up?",
-        "That's important to acknowledge. What support do you have right now?",
-      ];
+        setIsTyping(false);
 
-      const randomResponse =
-        aiResponses[Math.floor(Math.random() * aiResponses.length)];
+        const aiMessageId = `ai-${Date.now()}`;
+        const aiResponse = {
+          id: aiMessageId,
+          text: result.success ? result.response : "I'm here to listen. Can you tell me more about how you're feeling?",
+          sender: "ai",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+      } catch (error) {
+        console.error('Error getting AI response:', error);
+        setIsTyping(false);
 
-      const aiMessageId = `ai-${Date.now()}`;
-      const aiResponse = {
-        id: aiMessageId,
-        text: randomResponse,
-        sender: "ai",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiResponse]);
-    }, 2500);
+        // Fallback response in case of error
+        const aiMessageId = `ai-${Date.now()}`;
+        const aiResponse = {
+          id: aiMessageId,
+          text: "I'm here to listen. Can you tell me more about how you're feeling?",
+          sender: "ai",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+      }
+    }, 1500);
   };
 
   const handleSendTextMessage = () => {
@@ -401,9 +452,8 @@ export default function ChatScreen({ onBack, onFinish }) {
                       opacity: isTranscribing ? 0.5 : 1,
                     },
                   ]}
-                  onPressIn={handleStartRecording}
-                  onPressOut={handleStopRecording}
-                  activeOpacity={0.9}
+                  onPress={handleToggleRecording}
+                  activeOpacity={0.7}
                   disabled={isTranscribing}
                 >
                   <Ionicons

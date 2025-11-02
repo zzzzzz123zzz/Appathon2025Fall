@@ -306,27 +306,96 @@ Note: Aggregate information from all entries. For symptoms, note frequency or pr
  * @returns {string} Friendly AI response
  */
 function generateFriendlyResponse(extractedData, userName) {
-  const { symptoms, moods, medications } = extractedData;
+  const { symptoms, moods, medications, otherHealthChallenges } = extractedData;
 
   let response = `Thanks for sharing, ${userName}. `;
 
+  // Acknowledge symptoms with specific advice
   if (symptoms.length > 0) {
     response += `I've noted your symptoms: ${symptoms.map(s => s.name).join(', ')}. `;
+
+    // Provide severity-based advice
+    const severeSymptoms = symptoms.filter(s => s.degree === 'severe' || s.degree === 'worsening');
+    if (severeSymptoms.length > 0) {
+      response += `I'm concerned about your ${severeSymptoms.map(s => s.name).join(' and ')}. If these symptoms persist or worsen, please consult a healthcare provider. `;
+    }
+
+    // Symptom-specific advice
+    symptoms.forEach(symptom => {
+      const advice = getSymptomAdvice(symptom.name, symptom.degree);
+      if (advice) {
+        response += advice + ' ';
+      }
+    });
   }
 
+  // Mood-based responses with actionable advice
   if (moods.score <= 4) {
     response += "I'm sorry you're going through a tough time. ";
+
+    // Specific advice for low mood
+    if (moods.emotions.includes('anxious') || moods.emotions.includes('stressed')) {
+      response += "Try taking deep breaths, going for a short walk, or talking to someone you trust. ";
+    }
+    if (moods.emotions.includes('sad') || moods.emotions.includes('depressed')) {
+      response += "Remember that it's okay to feel this way. Consider reaching out to a mental health professional if these feelings persist. ";
+    }
+    response += "Small steps like getting fresh air, staying hydrated, or doing something you enjoy can help. ";
   } else if (moods.score >= 7) {
-    response += "It's great to hear you're feeling well! ";
+    response += "It's great to hear you're feeling well! Keep up whatever positive habits are working for you. ";
+  } else {
+    response += "Your mood seems balanced today. ";
   }
 
+  // Medication management advice
   if (medications.length > 0) {
-    response += `I've recorded your medications. `;
+    response += `I've recorded your medications: ${medications.map(m => m.name).join(', ')}. `;
+    response += "Make sure to take them as prescribed and track any side effects you notice. ";
+
+    const stoppedMeds = medications.filter(m => m.taken === false);
+    if (stoppedMeds.length > 0) {
+      response += "If you've stopped any medications, please discuss this with your doctor. ";
+    }
   }
 
-  response += "Keep tracking your health, and I'll help you monitor your progress.";
+  // Address chronic conditions
+  if (otherHealthChallenges && otherHealthChallenges.length > 0) {
+    response += `I see you're managing ${otherHealthChallenges.join(' and ')}. Stay consistent with your treatment plan and regular check-ups. `;
+  }
+
+  response += "Keep tracking your health, and I'll help you monitor your progress and identify patterns.";
 
   return response;
+}
+
+/**
+ * Get specific advice for common symptoms
+ *
+ * @param {string} symptomName - Name of the symptom
+ * @param {string} degree - Severity of the symptom
+ * @returns {string|null} Advice string or null
+ */
+function getSymptomAdvice(symptomName, degree) {
+  const symptomAdviceMap = {
+    'headache': 'For headaches, try resting in a quiet, dark room and staying hydrated.',
+    'nausea': 'For nausea, try eating small, bland meals and avoid strong smells.',
+    'fatigue': 'For fatigue, ensure you\'re getting enough sleep and consider checking your iron levels.',
+    'dizziness': 'For dizziness, sit or lie down immediately and avoid sudden movements. If it persists, see a doctor.',
+    'insomnia': 'For sleep issues, try establishing a consistent bedtime routine and limiting screen time before bed.',
+    'anxiety': 'For anxiety, try deep breathing exercises, meditation, or journaling your thoughts.',
+    'pain': 'For pain, rest the affected area and consider over-the-counter pain relief if appropriate.',
+    'fever': 'For fever, stay hydrated, rest, and monitor your temperature. Seek medical care if it goes above 103°F.',
+    'cough': 'For cough, stay hydrated and use a humidifier. See a doctor if it persists beyond a few weeks.',
+    'stomach ache': 'For stomach pain, try eating bland foods and staying hydrated. See a doctor if pain is severe.',
+  };
+
+  const lowerSymptom = symptomName.toLowerCase();
+  for (const [key, advice] of Object.entries(symptomAdviceMap)) {
+    if (lowerSymptom.includes(key)) {
+      return advice;
+    }
+  }
+  return null;
 }
 
 /**

@@ -408,6 +408,7 @@ function MainApp() {
               />
             ) : (
               <ChatScreen
+                currentUser={currentUser}
                 onBack={() => setActiveTab("home")}
                 onFinish={(conversationText, messages) =>
                   navigateToSuccess(conversationText, true, messages)
