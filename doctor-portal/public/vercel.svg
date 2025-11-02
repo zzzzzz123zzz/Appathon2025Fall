@@ -1,1 +1,20 @@
-<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="titleA descA">
+  <title id="titleA">App badge — rounded square</title>
+  <desc id="descA">Rounded square brown badge with white diagonal stripe and light-brown accent.</desc>
+  <!-- Colors: dark brown, light brown, white -->
+  <defs>
+    <style>
+      .bg{fill:#6B4226;}     /* dark brown /
+      .accent{fill:#D9C7B8;} / light brown */
+      .white{fill:#ffffff;}
+    </style>
+  </defs>
+
+  <!-- rounded square background -->
+  <rect x="2" y="2" width="60" height="60" rx="12" ry="12" class="bg"/>
+
+  <!-- diagonal white stripe forming a negative-space 'A' -->
+  <polygon points="18,46 32,14 46,46" class="white"/>
+  <!-- small light-brown inset to give depth -->
+  <path d="M22 42 L32 20 L42 42 Q32 36 22 42 Z" class="accent" opacity="0.95"/>
+</svg>
