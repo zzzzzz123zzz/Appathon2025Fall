@@ -106,19 +106,25 @@ function MainApp() {
 
     const registerAndListen = async () => {
       try {
+        console.log("🔔 Registering push notifications for user:", currentUser.email || currentUser.uid);
         const result = await registerForPushNotifications();
 
         if (result.success && result.token) {
+          console.log("📱 Got device token:", result.token.substring(0, 30) + "...");
+          console.log("💾 Saving to Firestore for user:", currentUser.uid);
+
           const saveResult = await savePushToken(currentUser.uid, result.token);
 
           if (!saveResult.success) {
-            console.error("Failed to persist push token:", saveResult.error);
+            console.error("❌ Failed to persist push token:", saveResult.error);
+          } else {
+            console.log("✅ Push token saved successfully!");
           }
         } else if (!result.success) {
-          console.warn("Push notification registration failed:", result.error);
+          console.warn("⚠️ Push notification registration failed:", result.error);
         }
       } catch (error) {
-        console.error("Unexpected push notification error:", error);
+        console.error("❌ Unexpected push notification error:", error);
       }
 
       if (!isActive) {

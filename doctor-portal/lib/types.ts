@@ -1,11 +1,19 @@
+export interface PushTokenDevice {
+  token: string;
+  deviceId?: string | null;
+  addedAt: string;
+  lastUsed: string;
+}
+
 export interface Patient {
   id: string;
   name: string;
   email: string;
   createdAt: any;
   profileImage?: string;
-  pushToken?: string;
+  pushToken?: string; // Primary token for backward compatibility
   pushTokenUpdatedAt?: string;
+  pushTokens?: PushTokenDevice[]; // Array of all devices
 }
 
 export interface Note {
