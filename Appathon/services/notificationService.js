@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import Constants from 'expo-constants';
 
 // Configure how notifications should be handled when app is in foreground
 Notifications.setNotificationHandler({
@@ -32,21 +33,35 @@ export async function registerForPushNotifications() {
     }
 
     // Get the Expo push token
-    // Note: This will fail in Expo Go on SDK 53+
-    // Use a development build for full push notification support
+    // Note: For Expo Go, we'll use the experienceId from Constants
     try {
-      // projectId will be automatically read from app.json extra.eas.projectId
-      const tokenData = await Notifications.getExpoPushTokenAsync();
+      // Try to get projectId from app config or use experienceId
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+
+      console.log('🔍 Debug info:');
+      console.log('  - Project ID:', projectId);
+      console.log('  - Experience ID:', Constants.experienceId);
+      console.log('  - App Owner:', Constants.expoConfig?.owner);
+      console.log('  - App Slug:', Constants.expoConfig?.slug);
+
+      // For Expo Go, we can use the experienceId format
+      const tokenConfig = projectId
+        ? { projectId }
+        : undefined; // Let Expo auto-detect from manifest
+
+      console.log('📡 Requesting push token with config:', tokenConfig);
+
+      const tokenData = await Notifications.getExpoPushTokenAsync(tokenConfig);
 
       const token = tokenData.data;
       console.log('📱 Expo Push Token:', token);
 
       return { success: true, token };
     } catch (tokenError) {
-      console.warn('⚠️ Could not get push token (Expo Go limitation on SDK 53+)');
-      console.warn('💡 For full push notification support, create a development build');
-      console.warn('   Run: npx expo install expo-dev-client && eas build');
-      return { success: false, error: 'Push notifications require a development build in SDK 53+' };
+      console.error('⚠️ Could not get push token:', tokenError);
+      console.error('Error details:', tokenError.message);
+      console.warn('💡 Make sure you are logged into Expo Go');
+      return { success: false, error: `Push token error: ${tokenError.message}` };
     }
   } catch (error) {
     console.error('Error getting push token:', error);

@@ -6,11 +6,15 @@ import {
   ScrollView,
   Switch,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { getUserProfile } from "../services/firestoreService";
+import { registerForPushNotifications, savePushToken } from "../services/notificationService";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../config/firebase";
 
 export default function ProfileScreen({ onBack, currentUser }) {
   const { theme } = useTheme();
@@ -18,6 +22,8 @@ export default function ProfileScreen({ onBack, currentUser }) {
   const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [reminderFrequency, setReminderFrequency] = useState(2); // times per day
+  const [pushToken, setPushToken] = useState(null);
+  const [registeringToken, setRegisteringToken] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -33,10 +39,44 @@ export default function ProfileScreen({ onBack, currentUser }) {
       if (result.success && result.data.name) {
         setProfileName(result.data.name);
       }
+
+      // Load push token from Firestore
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setPushToken(userData.pushToken || null);
+      }
     } catch (error) {
       console.error("Error loading profile:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRegisterPushNotifications = async () => {
+    if (!currentUser) return;
+
+    setRegisteringToken(true);
+    try {
+      const result = await registerForPushNotifications();
+
+      if (result.success && result.token) {
+        await savePushToken(currentUser.uid, result.token);
+        setPushToken(result.token);
+        Alert.alert(
+          "Success!",
+          `Push notifications registered!\n\nToken: ${result.token.substring(0, 30)}...`
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          result.error || "Could not register push notifications"
+        );
+      }
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    } finally {
+      setRegisteringToken(false);
     }
   };
 
@@ -101,6 +141,61 @@ export default function ProfileScreen({ onBack, currentUser }) {
               )}
             </View>
           </View>
+        </View>
+
+        {/* Push Token Debug Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+            PUSH NOTIFICATIONS DEBUG
+          </Text>
+          <View
+            style={[
+              styles.infoCard,
+              { backgroundColor: theme.cardBackground, borderColor: theme.border },
+            ]}
+          >
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>
+                Status
+              </Text>
+              <Text style={[styles.infoValue, { color: pushToken ? '#10b981' : '#ef4444' }]}>
+                {pushToken ? "Enabled" : "Not Enabled"}
+              </Text>
+            </View>
+            {pushToken && (
+              <>
+                <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                <View style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>
+                    Token
+                  </Text>
+                  <Text style={[styles.tokenValue, { color: theme.text }]} numberOfLines={1}>
+                    {pushToken.substring(0, 20)}...
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.registerButton,
+              { backgroundColor: theme.primary },
+            ]}
+            onPress={handleRegisterPushNotifications}
+            disabled={registeringToken}
+          >
+            {registeringToken ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="refresh-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.registerButtonText}>
+                  {pushToken ? "Re-register" : "Register"} Push Notifications
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Notifications Section */}
@@ -391,5 +486,24 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 40,
+  },
+  tokenValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    maxWidth: 180,
+  },
+  registerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 12,
+    gap: 8,
+  },
+  registerButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

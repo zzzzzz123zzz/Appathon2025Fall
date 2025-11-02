@@ -83,7 +83,9 @@ export default function Dashboard() {
         const usersSnapshot = await getDocs(collection(db, "users"));
         const patients: Patient[] = [];
         usersSnapshot.forEach((doc) => {
-          patients.push({ id: doc.id, ...doc.data() } as Patient);
+          const patientData = { id: doc.id, ...doc.data() } as Patient;
+          console.log("Fetched patient:", patientData.name, "- pushToken:", patientData.pushToken);
+          patients.push(patientData);
         });
         setAllPatients(patients);
 
@@ -386,8 +388,13 @@ export default function Dashboard() {
       return;
     }
 
+    // Debug: Log the selected patient data
+    console.log("Selected Patient Data:", selectedPatient);
+    console.log("Push Token:", selectedPatient.pushToken);
+    console.log("Push Token Type:", typeof selectedPatient.pushToken);
+
     if (!selectedPatient.pushToken) {
-      alert("This patient has not enabled push notifications yet.");
+      alert("This patient has not enabled push notifications yet. Debug info logged to console.");
       return;
     }
 
