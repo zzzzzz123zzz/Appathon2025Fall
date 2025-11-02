@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Doctor Portal - Patient Health Monitoring",
-  description: "Professional web portal for doctors to monitor their patients' health journals",
+  title: "Theo Health | Doctor Portal",
+  description:
+    "Medical web portal for doctors to monitor their patients' health journals",
 };
 
 export default function RootLayout({
@@ -28,9 +29,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
