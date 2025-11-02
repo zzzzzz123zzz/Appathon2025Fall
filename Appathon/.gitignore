@@ -43,3 +43,6 @@ config/secrets.js
 # generated native folders
 /ios
 /android
+
+# Claude Code
+.claude/
