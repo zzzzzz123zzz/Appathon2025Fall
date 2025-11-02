@@ -32,11 +32,25 @@ export async function registerForPushNotifications() {
       return { success: false, error: 'Permission not granted' };
     }
 
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('doctor-alerts', {
+        name: 'Doctor Alerts',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      });
+    }
+
     // Get the Expo push token
     // Note: For Expo Go, we'll use the experienceId from Constants
     try {
       // Try to get projectId from app config or use experienceId
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      const projectId =
+        Constants?.easConfig?.projectId ||
+        Constants?.expoConfig?.extra?.eas?.projectId ||
+        process.env.EXPO_PUBLIC_PROJECT_ID ||
+        null;
 
       console.log('🔍 Debug info:');
       console.log('  - Project ID:', projectId);
@@ -47,7 +61,9 @@ export async function registerForPushNotifications() {
       // For Expo Go, we can use the experienceId format
       const tokenConfig = projectId
         ? { projectId }
-        : undefined; // Let Expo auto-detect from manifest
+        : Constants.experienceId
+        ? { experienceId: Constants.experienceId }
+        : undefined; // Let Expo auto-detect from manifest if possible
 
       console.log('📡 Requesting push token with config:', tokenConfig);
 
@@ -60,7 +76,11 @@ export async function registerForPushNotifications() {
     } catch (tokenError) {
       console.error('⚠️ Could not get push token:', tokenError);
       console.error('Error details:', tokenError.message);
-      console.warn('💡 Make sure you are logged into Expo Go');
+      if (tokenError?.message?.includes('No "projectId" found')) {
+        console.warn('💡 Set EXPO_PUBLIC_PROJECT_ID in your env or add extra.eas.projectId to app.json for bare/dev builds.');
+      } else {
+        console.warn('💡 Verify the Expo Go client is running and connected to the internet');
+      }
       return { success: false, error: `Push token error: ${tokenError.message}` };
     }
   } catch (error) {

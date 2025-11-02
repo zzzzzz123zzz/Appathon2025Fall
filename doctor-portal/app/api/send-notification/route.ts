@@ -25,17 +25,67 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(message),
     });
 
-    const result = await response.json();
-
-    if (result.data?.status === 'error') {
-      console.error('Expo push notification error:', result.data);
+    let result: any = null;
+    try {
+      result = await response.json();
+    } catch (parseError: any) {
+      console.error('Error parsing Expo push response:', parseError);
       return NextResponse.json(
-        { success: false, error: result.data.message },
+        { success: false, error: 'Invalid response from Expo push service' },
+        { status: 502 }
+      );
+    }
+
+    if (!response.ok) {
+      const errorMessage =
+        result?.errors?.[0]?.message ||
+        result?.data?.message ||
+        response.statusText ||
+        'Failed to send push notification';
+
+      console.error('Expo push notification HTTP error:', {
+        status: response.status,
+        result,
+      });
+
+      return NextResponse.json(
+        { success: false, error: errorMessage, details: result },
+        { status: response.status }
+      );
+    }
+
+    const expoErrors = Array.isArray(result?.errors) ? result.errors : [];
+    if (expoErrors.length > 0) {
+      console.error('Expo push notification errors:', expoErrors);
+      return NextResponse.json(
+        {
+          success: false,
+          error: expoErrors[0]?.message || 'Expo push notification error',
+          details: expoErrors,
+        },
+        { status: 400 }
+      );
+    }
+
+    const dataArray = Array.isArray(result?.data) ? result.data : [result?.data];
+    const failedTicket = dataArray.find(
+      (ticket: any) => ticket?.status === 'error'
+    );
+
+    if (failedTicket) {
+      console.error('Expo push notification ticket error:', failedTicket);
+      return NextResponse.json(
+        {
+          success: false,
+          error: failedTicket?.message || 'Expo push notification error',
+          details: failedTicket,
+        },
         { status: 400 }
       );
     }

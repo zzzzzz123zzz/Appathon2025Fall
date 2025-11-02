@@ -1,4 +1,5 @@
 {
+
   "expo": {
     "name": "Appathon",
     "slug": "Appathon",
@@ -42,12 +43,6 @@
           "color": "#c1a57d"
         }
       ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "2252ee7a-d671-4481-b7ab-1b57e4d3ff2a"
-      }
-    },
-    "owner": "kuldeepdebnath"
+    ]
   }
 }

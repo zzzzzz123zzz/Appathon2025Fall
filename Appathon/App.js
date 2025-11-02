@@ -97,17 +97,35 @@ function MainApp() {
 
   // Register for push notifications when user is logged in
   useEffect(() => {
-    if (currentUser) {
-      // Register for push notifications
-      registerForPushNotifications().then((result) => {
-        if (result.success && result.token) {
-          // Save token to Firestore
-          savePushToken(currentUser.uid, result.token);
-        }
-      });
+    if (!currentUser) {
+      return undefined;
+    }
 
-      // Set up notification listeners
-      const cleanup = setupNotificationListeners(
+    let cleanupListener = null;
+    let isActive = true;
+
+    const registerAndListen = async () => {
+      try {
+        const result = await registerForPushNotifications();
+
+        if (result.success && result.token) {
+          const saveResult = await savePushToken(currentUser.uid, result.token);
+
+          if (!saveResult.success) {
+            console.error("Failed to persist push token:", saveResult.error);
+          }
+        } else if (!result.success) {
+          console.warn("Push notification registration failed:", result.error);
+        }
+      } catch (error) {
+        console.error("Unexpected push notification error:", error);
+      }
+
+      if (!isActive) {
+        return;
+      }
+
+      cleanupListener = setupNotificationListeners(
         (notification) => {
           // Handle notification received while app is open
           console.log("📨 Notification received:", notification);
@@ -118,9 +136,16 @@ function MainApp() {
           // You can navigate to a specific screen based on notification data
         }
       );
+    };
 
-      return cleanup;
-    }
+    registerAndListen();
+
+    return () => {
+      isActive = false;
+      if (cleanupListener) {
+        cleanupListener();
+      }
+    };
   }, [currentUser]);
 
   // Auto-navigate from loading screen if no user
