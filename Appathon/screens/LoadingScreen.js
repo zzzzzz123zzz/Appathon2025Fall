@@ -7,11 +7,15 @@ export default function LoadingScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Image
-        source={require("../assets/snowLeopard5.png")}
+        source={require("../assets/snowLeopard4.png")}
         style={styles.image}
         resizeMode="contain"
       />
-      <ActivityIndicator size="large" color={theme.primary} style={styles.loader} />
+      <ActivityIndicator
+        size="large"
+        color={theme.primary}
+        style={styles.loader}
+      />
     </View>
   );
 }

@@ -60,7 +60,7 @@ export default function OnboardingScreen({ onGetStarted, onSignIn }) {
           resizeMode="contain"
         />
         <Text style={[styles.title, { color: theme.text }]}>
-          Welcome to Theohealth
+          Welcome to Theo Health
         </Text>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           Your personal journal and wellness companion
