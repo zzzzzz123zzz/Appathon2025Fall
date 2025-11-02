@@ -169,32 +169,35 @@ export default function HistoryScreen({
 
         <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={[styles.secondaryButton, { borderColor: theme.primary }]}
+            style={[styles.primaryButton, { backgroundColor: theme.primary }]}
             onPress={onCreateNote}
+            activeOpacity={0.8}
           >
             <Ionicons
-              name="add-circle-outline"
-              size={22}
-              color={theme.primary}
+              name="add-circle"
+              size={24}
+              color="#FFFFFF"
             />
-            <Text
-              style={[styles.secondaryButtonText, { color: theme.primary }]}
-            >
+            <Text style={styles.primaryButtonText}>
               New Entry
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.secondaryButton, { borderColor: theme.primary }]}
+            style={[styles.secondaryButton, {
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border
+            }]}
             onPress={onViewSummary}
+            activeOpacity={0.8}
           >
             <Ionicons
-              name="bar-chart-outline"
-              size={22}
+              name="bar-chart"
+              size={24}
               color={theme.primary}
             />
             <Text
-              style={[styles.secondaryButtonText, { color: theme.primary }]}
+              style={[styles.secondaryButtonText, { color: theme.text }]}
             >
               Summary
             </Text>
@@ -212,8 +215,17 @@ export default function HistoryScreen({
           </View>
         ) : notes.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={[styles.description, { color: theme.text }]}>
-              Your journal entries will appear here
+            <Ionicons
+              name="journal-outline"
+              size={64}
+              color={theme.textSecondary}
+              style={styles.emptyIcon}
+            />
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>
+              No entries yet
+            </Text>
+            <Text style={[styles.emptyDescription, { color: theme.textSecondary }]}>
+              Start journaling by tapping the mic button or creating a new entry
             </Text>
           </View>
         ) : (
@@ -364,29 +376,53 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 24,
   },
+  primaryButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  primaryButtonText: {
+    fontSize: 17,
+    fontWeight: "700",
+    marginLeft: 8,
+    letterSpacing: 0.3,
+    color: "#FFFFFF",
+  },
   secondaryButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 2.5,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 1.5,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   secondaryButtonText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
-    marginLeft: 6,
-    letterSpacing: 0.2,
+    marginLeft: 8,
+    letterSpacing: 0.3,
   },
   description: {
     fontSize: 18,
@@ -419,6 +455,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 40,
+    paddingBottom: 120,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+    opacity: 0.5,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: "600",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptyDescription: {
+    fontSize: 16,
+    lineHeight: 24,
+    opacity: 0.8,
+    textAlign: "center",
   },
   description: {
     fontSize: 18,

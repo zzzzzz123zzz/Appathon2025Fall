@@ -97,17 +97,41 @@ function MainApp() {
 
   // Register for push notifications when user is logged in
   useEffect(() => {
-    if (currentUser) {
-      // Register for push notifications
-      registerForPushNotifications().then((result) => {
-        if (result.success && result.token) {
-          // Save token to Firestore
-          savePushToken(currentUser.uid, result.token);
-        }
-      });
+    if (!currentUser) {
+      return undefined;
+    }
 
-      // Set up notification listeners
-      const cleanup = setupNotificationListeners(
+    let cleanupListener = null;
+    let isActive = true;
+
+    const registerAndListen = async () => {
+      try {
+        console.log("🔔 Registering push notifications for user:", currentUser.email || currentUser.uid);
+        const result = await registerForPushNotifications();
+
+        if (result.success && result.token) {
+          console.log("📱 Got device token:", result.token.substring(0, 30) + "...");
+          console.log("💾 Saving to Firestore for user:", currentUser.uid);
+
+          const saveResult = await savePushToken(currentUser.uid, result.token);
+
+          if (!saveResult.success) {
+            console.error("❌ Failed to persist push token:", saveResult.error);
+          } else {
+            console.log("✅ Push token saved successfully!");
+          }
+        } else if (!result.success) {
+          console.warn("⚠️ Push notification registration failed:", result.error);
+        }
+      } catch (error) {
+        console.error("❌ Unexpected push notification error:", error);
+      }
+
+      if (!isActive) {
+        return;
+      }
+
+      cleanupListener = setupNotificationListeners(
         (notification) => {
           // Handle notification received while app is open
           console.log("📨 Notification received:", notification);
@@ -118,9 +142,16 @@ function MainApp() {
           // You can navigate to a specific screen based on notification data
         }
       );
+    };
 
-      return cleanup;
-    }
+    registerAndListen();
+
+    return () => {
+      isActive = false;
+      if (cleanupListener) {
+        cleanupListener();
+      }
+    };
   }, [currentUser]);
 
   // Auto-navigate from loading screen if no user

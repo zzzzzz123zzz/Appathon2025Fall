@@ -176,19 +176,6 @@ export default function SettingsDrawer({
                       {userName || "User"}
                     </Text>
                   )}
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (onEditProfile) {
-                        onEditProfile();
-                      }
-                    }}
-                  >
-                    <Text
-                      style={[styles.editProfile, { color: theme.primary }]}
-                    >
-                      Edit Profile
-                    </Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -259,37 +246,20 @@ export default function SettingsDrawer({
                 { backgroundColor: theme.cardBackground },
               ]}
             >
-              {/* <SettingRow
-                icon="lock-closed-outline"
-                title="Privacy & Security"
+              <SettingRow
+                icon="create-outline"
+                title="Edit Profile"
+                onPress={() => {
+                  if (onEditProfile) {
+                    onEditProfile();
+                  }
+                }}
                 rightComponent={
                   <Ionicons
                     name="chevron-forward"
                     size={20}
                     color={theme.textSecondary}
                   />
-                }
-              />
-              <SettingRow
-                icon="document-text-outline"
-                title="Terms & Conditions"
-                rightComponent={
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={theme.textSecondary}
-                  />
-                }
-              /> */}
-              <SettingRow
-                icon="information-circle-outline"
-                title="About"
-                rightComponent={
-                  <Text
-                    style={[styles.versionText, { color: theme.textSecondary }]}
-                  >
-                    v1.0.0
-                  </Text>
                 }
               />
               <SettingRow

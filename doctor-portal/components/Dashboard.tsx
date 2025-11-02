@@ -82,9 +82,13 @@ export default function Dashboard() {
 
         const usersSnapshot = await getDocs(collection(db, "users"));
         const patients: Patient[] = [];
+        console.log("📋 Loading patients from Firestore...");
         usersSnapshot.forEach((doc) => {
-          patients.push({ id: doc.id, ...doc.data() } as Patient);
+          const patientData = { id: doc.id, ...doc.data() } as Patient;
+          console.log(`  - ${patientData.name} (${doc.id}): pushToken = ${patientData.pushToken ? '✅ ' + patientData.pushToken.substring(0, 20) + '...' : '❌ NOT SET'}`);
+          patients.push(patientData);
         });
+        console.log(`📋 Loaded ${patients.length} total patients`);
         setAllPatients(patients);
 
         const myPts = patients.filter((p) =>
@@ -376,6 +380,29 @@ export default function Dashboard() {
     }
   };
 
+  const clearPushToken = async (patientId: string, patientName: string) => {
+    if (!confirm(`Clear all push tokens for ${patientName}? They will need to re-register on their device(s).`)) {
+      return;
+    }
+
+    try {
+      const { updateDoc, doc, deleteField } = await import("firebase/firestore");
+      await updateDoc(doc(db, "users", patientId), {
+        pushToken: deleteField(),
+        pushTokenUpdatedAt: deleteField(),
+        pushTokens: deleteField(), // Also clear the array
+      });
+
+      alert(`All push tokens cleared for ${patientName}. They can now register their device(s).`);
+
+      // Reload patients to update the UI
+      loadDoctorData();
+    } catch (error: any) {
+      console.error("Error clearing push tokens:", error);
+      alert(`Error clearing push tokens: ${error.message}`);
+    }
+  };
+
   const sendNotification = async () => {
     if (
       !selectedPatient ||
@@ -386,12 +413,37 @@ export default function Dashboard() {
       return;
     }
 
-    if (!selectedPatient.pushToken) {
-      alert("This patient has not enabled push notifications yet.");
+    // Debug: Log the selected patient data
+    console.log("🔔 SENDING NOTIFICATION");
+    console.log("Selected Patient Data:", selectedPatient);
+    console.log("Push Token (primary):", selectedPatient.pushToken);
+    console.log("Push Tokens (all devices):", selectedPatient.pushTokens);
+    console.log("Push Tokens count:", selectedPatient.pushTokens?.length || 0);
+
+    // Check if patient has any push tokens
+    const hasPushTokens = selectedPatient.pushTokens && selectedPatient.pushTokens.length > 0;
+    const hasLegacyToken = selectedPatient.pushToken;
+
+    if (!hasPushTokens && !hasLegacyToken) {
+      alert("This patient has not enabled push notifications yet. Debug info logged to console.");
       return;
     }
 
     setSendingNotification(true);
+
+    const requestPayload = {
+      pushToken: selectedPatient.pushToken, // For backward compatibility
+      pushTokens: selectedPatient.pushTokens, // Send all devices
+      title: notificationForm.title,
+      body: notificationForm.message,
+      data: {
+        type: "doctor_message",
+        patientId: selectedPatient.id,
+        doctorId: doctor?.id,
+      },
+    };
+
+    console.log("📤 Request Payload:", JSON.stringify(requestPayload, null, 2));
 
     try {
       const response = await fetch("/api/send-notification", {
@@ -399,22 +451,14 @@ export default function Dashboard() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          pushToken: selectedPatient.pushToken,
-          title: notificationForm.title,
-          body: notificationForm.message,
-          data: {
-            type: "doctor_message",
-            patientId: selectedPatient.id,
-            doctorId: doctor?.id,
-          },
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        alert(`Notification sent to ${selectedPatient.name}!`);
+        const deviceCount = result.deviceCount || 1;
+        alert(`Notification sent to ${selectedPatient.name} on ${deviceCount} device${deviceCount > 1 ? 's' : ''}!`);
         setShowNotificationModal(false);
         setNotificationForm({ title: "", message: "" });
       } else {
@@ -655,7 +699,14 @@ export default function Dashboard() {
                   {myPatients.map((patient) => (
                     <div
                       key={patient.id}
-                      onClick={() => setSelectedPatient(patient)}
+                      onClick={() => {
+                        console.log("👤 Patient Selected:", {
+                          name: patient.name,
+                          id: patient.id,
+                          pushToken: patient.pushToken,
+                        });
+                        setSelectedPatient(patient);
+                      }}
                       className={`p-4 mx-3 mb-2 rounded-xl cursor-pointer transition-all duration-200 ${
                         selectedPatient?.id === patient.id
                           ? "bg-gradient-to-r from-[#c1a57d]/10 to-[#b39a6d]/10 shadow-md"
@@ -1443,10 +1494,72 @@ export default function Dashboard() {
             </div>
 
             <div className="px-6 pb-6">
-              {!selectedPatient?.pushToken && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 text-sm">
-                  This patient has not enabled push notifications yet. They will
-                  need to open the app and allow notifications first.
+              {/* Push Token Debug Info */}
+              {selectedPatient && (
+                <div className={`mb-4 p-4 rounded-xl border ${
+                  (selectedPatient.pushTokens?.length > 0 || selectedPatient.pushToken)
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-yellow-50 border-yellow-200'
+                }`}>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-sm font-semibold ${
+                          (selectedPatient.pushTokens?.length > 0 || selectedPatient.pushToken) ? 'text-green-800' : 'text-yellow-800'
+                        }`}>
+                          Push Notifications: {(selectedPatient.pushTokens?.length > 0 || selectedPatient.pushToken) ? '✅ Enabled' : '❌ Not Enabled'}
+                        </span>
+                        {selectedPatient.pushTokens?.length > 0 && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                            {selectedPatient.pushTokens.length} device{selectedPatient.pushTokens.length > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+
+                      {selectedPatient.pushTokens && selectedPatient.pushTokens.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedPatient.pushTokens.map((device, index) => (
+                            <div key={index} className="bg-white p-2 rounded-lg border border-green-100">
+                              <p className="text-xs text-gray-600 font-mono break-all mb-1">
+                                {device.token}
+                              </p>
+                              <div className="flex gap-3 text-xs text-gray-500">
+                                <span>Added: {new Date(device.addedAt).toLocaleDateString()}</span>
+                                <span>Last used: {new Date(device.lastUsed).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : selectedPatient.pushToken ? (
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-600 font-mono break-all">
+                            Token: {selectedPatient.pushToken}
+                          </p>
+                          {selectedPatient.pushTokenUpdatedAt && (
+                            <p className="text-xs text-gray-500">
+                              Registered: {new Date(selectedPatient.pushTokenUpdatedAt).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-yellow-700">
+                          Patient needs to open the app and allow notifications on their device.
+                        </p>
+                      )}
+                    </div>
+                    {(selectedPatient.pushTokens?.length > 0 || selectedPatient.pushToken) && (
+                      <button
+                        onClick={() => clearPushToken(selectedPatient.id, selectedPatient.name)}
+                        className="ml-3 px-3 py-1.5 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors duration-200 flex items-center gap-1 flex-shrink-0"
+                        title="Clear all tokens (for testing - patient will need to re-register)"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Clear All
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
