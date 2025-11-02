@@ -195,8 +195,13 @@ export function setupNotificationListeners(
 
   // Return cleanup function
   return () => {
-    Notifications.removeNotificationSubscription(receivedListener);
-    Notifications.removeNotificationSubscription(responseListener);
+    // Use the correct method to remove subscriptions
+    if (receivedListener && receivedListener.remove) {
+      receivedListener.remove();
+    }
+    if (responseListener && responseListener.remove) {
+      responseListener.remove();
+    }
   };
 }
 

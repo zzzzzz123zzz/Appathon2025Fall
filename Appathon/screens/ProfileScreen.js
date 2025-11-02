@@ -99,7 +99,7 @@ export default function ProfileScreen({ onBack, currentUser }) {
           <Ionicons name="arrow-back" size={28} color={theme.primary} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>
-          Edit Profile
+          Profile
         </Text>
         <View style={styles.placeholder} />
       </View>
