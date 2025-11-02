@@ -5,25 +5,90 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
+  ActivityIndicator,
   Alert,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
+import { getUserProfile } from "../services/firestoreService";
+import { registerForPushNotifications, savePushToken } from "../services/notificationService";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../config/firebase";
 
-export default function ProfileScreen({ onBack }) {
+export default function ProfileScreen({ onBack, currentUser }) {
   const { theme } = useTheme();
-  const [profileName, setProfileName] = useState("Theodore");
+  const [profileName, setProfileName] = useState("");
+  const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [reminderFrequency, setReminderFrequency] = useState(2); // times per day
+  const [pushToken, setPushToken] = useState(null);
+  const [registeringToken, setRegisteringToken] = useState(false);
 
-  const handleChangeProfilePicture = () => {
-    // TODO: Implement image picker
-    Alert.alert(
-      "Change Profile Picture",
-      "Image picker will be implemented here",
-      [{ text: "OK" }]
-    );
+  useEffect(() => {
+    if (currentUser) {
+      loadUserProfile();
+    }
+  }, [currentUser]);
+
+  const loadUserProfile = async () => {
+    if (!currentUser) return;
+
+    try {
+      const result = await getUserProfile(currentUser.uid);
+      if (result.success && result.data.name) {
+        setProfileName(result.data.name);
+      }
+
+      // Load push token from Firestore
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setPushToken(userData.pushToken || null);
+      }
+    } catch (error) {
+      console.error("Error loading profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegisterPushNotifications = async () => {
+    if (!currentUser) return;
+
+    setRegisteringToken(true);
+    try {
+      const result = await registerForPushNotifications();
+
+      if (result.success && result.token) {
+        await savePushToken(currentUser.uid, result.token);
+        setPushToken(result.token);
+        Alert.alert(
+          "Success!",
+          `Push notifications registered!\n\nToken: ${result.token.substring(0, 30)}...`
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          result.error || "Could not register push notifications"
+        );
+      }
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    } finally {
+      setRegisteringToken(false);
+    }
+  };
+
+  // Get user's first initial
+  const getInitial = () => {
+    if (profileName && profileName.length > 0) {
+      return profileName.charAt(0).toUpperCase();
+    }
+    if (currentUser && currentUser.email) {
+      return currentUser.email.charAt(0).toUpperCase();
+    }
+    return "U";
   };
 
   return (
@@ -42,26 +107,13 @@ export default function ProfileScreen({ onBack }) {
       <ScrollView style={styles.content}>
         {/* Profile Picture Section */}
         <View style={styles.profileSection}>
-          <View style={styles.profilePictureWrapper}>
-            <View
-              style={[
-                styles.profilePictureContainer,
-                { backgroundColor: theme.primary },
-              ]}
-            >
-              <Ionicons name="person" size={60} color="#FFFFFF" />
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.editIconButton,
-                { backgroundColor: theme.primary },
-              ]}
-              onPress={handleChangeProfilePicture}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="camera" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
+          <View
+            style={[
+              styles.profilePictureContainer,
+              { backgroundColor: theme.primary },
+            ]}
+          >
+            <Text style={styles.initialText}>{getInitial()}</Text>
           </View>
         </View>
 
@@ -80,11 +132,70 @@ export default function ProfileScreen({ onBack }) {
               <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>
                 Name
               </Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>
-                {profileName}
-              </Text>
+              {loading ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <Text style={[styles.infoValue, { color: theme.text }]}>
+                  {profileName || "User"}
+                </Text>
+              )}
             </View>
           </View>
+        </View>
+
+        {/* Push Token Debug Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+            PUSH NOTIFICATIONS DEBUG
+          </Text>
+          <View
+            style={[
+              styles.infoCard,
+              { backgroundColor: theme.cardBackground, borderColor: theme.border },
+            ]}
+          >
+            <View style={styles.infoRow}>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>
+                Status
+              </Text>
+              <Text style={[styles.infoValue, { color: pushToken ? '#10b981' : '#ef4444' }]}>
+                {pushToken ? "Enabled" : "Not Enabled"}
+              </Text>
+            </View>
+            {pushToken && (
+              <>
+                <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                <View style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>
+                    Token
+                  </Text>
+                  <Text style={[styles.tokenValue, { color: theme.text }]} numberOfLines={1}>
+                    {pushToken.substring(0, 20)}...
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.registerButton,
+              { backgroundColor: theme.primary },
+            ]}
+            onPress={handleRegisterPushNotifications}
+            disabled={registeringToken}
+          >
+            {registeringToken ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="refresh-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.registerButtonText}>
+                  {pushToken ? "Re-register" : "Register"} Push Notifications
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Notifications Section */}
@@ -212,22 +323,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderBottomWidth: 0,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   backButton: {
     padding: 8,
-    width: 44,
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: "700",
     flex: 1,
     textAlign: "center",
+    letterSpacing: 0.3,
   },
   placeholder: {
-    width: 44,
+    width: 48,
   },
   content: {
     flex: 1,
@@ -236,28 +360,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 32,
   },
-  profilePictureWrapper: {
-    position: "relative",
-    marginBottom: 20,
-  },
   profilePictureContainer: {
     width: 120,
     height: 120,
     borderRadius: 60,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  editIconButton: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
+  initialText: {
+    fontSize: 48,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
   section: {
     paddingHorizontal: 24,
@@ -270,29 +392,45 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   infoCard: {
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 14,
+    borderWidth: 0,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
   },
   infoLabel: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   infoValue: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   settingsCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
+    borderRadius: 14,
+    borderWidth: 0,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   settingRow: {
     flexDirection: "row",
@@ -327,17 +465,45 @@ const styles = StyleSheet.create({
   },
   frequencyButton: {
     flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 2,
+    paddingVertical: 18,
+    borderRadius: 14,
+    borderWidth: 2.5,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   frequencyText: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   bottomPadding: {
     height: 40,
+  },
+  tokenValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    maxWidth: 180,
+  },
+  registerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 12,
+    gap: 8,
+  },
+  registerButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

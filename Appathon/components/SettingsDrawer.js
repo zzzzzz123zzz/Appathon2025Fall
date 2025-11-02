@@ -8,15 +8,79 @@ import {
   Switch,
   ScrollView,
   Image,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useTheme } from "../context/ThemeContext";
+import { getUserProfile, saveUserProfile } from "../services/firestoreService";
+import { logOut } from "../services/authService";
 
-export default function SettingsDrawer({ visible, onClose, onEditProfile }) {
+export default function SettingsDrawer({
+  visible,
+  onClose,
+  onEditProfile,
+  currentUser,
+  onSignOut,
+}) {
   const { theme, isDarkMode, themeMode, setThemeMode } = useTheme();
   const slideAnim = useRef(new Animated.Value(-320)).current;
   const [reminderFrequency, setReminderFrequency] = useState(2); // times per day
+  const [userName, setUserName] = useState("");
+  const [profileImage, setProfileImage] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+    if (visible && currentUser) {
+      loadUserData();
+    }
+  }, [visible, currentUser]);
+
+  const loadUserData = async () => {
+    if (!currentUser) return;
+
+    try {
+      const result = await getUserProfile(currentUser.uid);
+      if (result.success) {
+        if (result.data.name) {
+          setUserName(result.data.name);
+        }
+        if (result.data.profileImage) {
+          setProfileImage(result.data.profileImage);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+    } finally {
+      setLoadingUser(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: async () => {
+          const result = await logOut();
+          if (result.success) {
+            onClose();
+            if (onSignOut) {
+              onSignOut();
+            }
+          } else {
+            Alert.alert("Error", "Failed to sign out. Please try again.");
+          }
+        },
+      },
+    ]);
+  };
 
   useEffect(() => {
     if (visible) {
@@ -95,12 +159,23 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile }) {
                     { backgroundColor: theme.primary },
                   ]}
                 >
-                  <Ionicons name="person" size={40} color="#ffffff" />
+                  {profileImage ? (
+                    <Image
+                      source={{ uri: profileImage }}
+                      style={styles.avatarImage}
+                    />
+                  ) : (
+                    <Ionicons name="person" size={40} color="#ffffff" />
+                  )}
                 </View>
                 <View style={styles.profileInfo}>
-                  <Text style={[styles.profileName, { color: theme.text }]}>
-                    Theodore
-                  </Text>
+                  {loadingUser ? (
+                    <ActivityIndicator size="small" color={theme.primary} />
+                  ) : (
+                    <Text style={[styles.profileName, { color: theme.text }]}>
+                      {userName || "User"}
+                    </Text>
+                  )}
                   <TouchableOpacity
                     onPress={() => {
                       if (onEditProfile) {
@@ -184,7 +259,7 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile }) {
                 { backgroundColor: theme.cardBackground },
               ]}
             >
-              <SettingRow
+              {/* <SettingRow
                 icon="lock-closed-outline"
                 title="Privacy & Security"
                 rightComponent={
@@ -205,18 +280,7 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile }) {
                     color={theme.textSecondary}
                   />
                 }
-              />
-              <SettingRow
-                icon="help-circle-outline"
-                title="Help & Support"
-                rightComponent={
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={theme.textSecondary}
-                  />
-                }
-              />
+              /> */}
               <SettingRow
                 icon="information-circle-outline"
                 title="About"
@@ -228,6 +292,13 @@ export default function SettingsDrawer({ visible, onClose, onEditProfile }) {
                   </Text>
                 }
               />
+              <SettingRow
+                icon="log-out-outline"
+                title="Log Out"
+                onPress={handleSignOut}
+              >
+                t
+              </SettingRow>
             </View>
 
             <View style={styles.bottomPadding} />
@@ -316,6 +387,12 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
+    position: "relative",
+  },
+  avatarImage: {
+    width: 64,
+    height: 64,
   },
   profileInfo: {
     marginLeft: 16,
@@ -383,6 +460,19 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 14,
+  },
+  signOutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    gap: 8,
+  },
+  signOutText: {
+    fontSize: 16,
+    fontWeight: "600",
   },
   bottomPadding: {
     height: 40,

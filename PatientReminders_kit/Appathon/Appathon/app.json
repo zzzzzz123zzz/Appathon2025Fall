@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Appathon",
+    "slug": "appathon",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "plugins": ["expo-notifications"],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "This is used to send you reminders to journal.",
+        "UIApplicationSupportsIndirectInputEvents": true
+      }
+    },
+    "android": {
+      "permissions": ["POST_NOTIFICATIONS"],
+      "useNextNotificationsApi": true
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

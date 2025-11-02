@@ -4,12 +4,29 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Animated,
+  Alert,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import SignupScreen from "./screens/SignupScreen";
+import { Ionicons } from "@expo/vector-icons";
+import { signUp, signIn, onAuthStateChange } from "./services/authService";
+import {
+  saveUserProfile,
+  saveQuizData,
+  createNote,
+} from "./services/firestoreService";
+import { processDiaryEntry } from "./services/diaryService";
+import {
+  registerForPushNotifications,
+  savePushToken,
+  setupNotificationListeners,
+} from "./services/notificationService";
+
+import SignupScreen1 from "./screens/SignupScreen1";
+import SignupScreen2 from "./screens/SignupScreen2";
+import SignupScreen3 from "./screens/SignupScreen3";
+import SignInScreen from "./screens/SignInScreen";
 import HistoryScreen from "./screens/HistoryScreen";
 import NoteScreen from "./screens/NoteScreen";
 import ChatScreen from "./screens/ChatScreen";
@@ -18,6 +35,9 @@ import WeekInReviewScreen from "./screens/WeekInReviewScreen";
 import LoadingScreen from "./screens/LoadingScreen";
 import SummaryScreen from "./screens/SummaryScreen";
 import SuccessScreen from "./screens/SuccessScreen";
+import OnboardingScreen from "./screens/OnboardingScreen";
+import QuizScreen from "./screens/QuizScreen";
+import TabBar from "./components/TabBar";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 
 function MainApp() {
@@ -25,30 +45,129 @@ function MainApp() {
 
   // stack navigation state
   const [screen, setScreen] = useState("loading");
-  const [previousScreen, setPreviousScreen] = useState("loading");
+  
+  // Navigation history stack - ONLY CHANGE FOR NAVIGATION FIX
+  const [navigationHistory, setNavigationHistory] = useState(["loading"]);
+
+  // Signup data state
+  const [signupData, setSignupData] = useState({});
+
+  // Quiz data state
+  const [quizData, setQuizData] = useState({});
+
+  // User state
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isNewSignup, setIsNewSignup] = useState(false);
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState("home");
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  // Auto-navigate from loading screen
+  // Listen to auth state changes
   useEffect(() => {
-    if (screen === "loading") {
+    const unsubscribe = onAuthStateChange((user) => {
+      setCurrentUser(user);
+      setLoading(false);
+
+      if (user && !isNewSignup) {
+        // Existing user is signed in, navigate to home
+        if (screen === "loading") {
+          setTimeout(() => {
+            setNavigationHistory(["home"]);
+            navigateWithAnimation("home", "fade", false);
+          }, 1500);
+        }
+      } else if (!user) {
+        // User is signed out, navigate to onboarding
+        if (screen === "loading") {
+          setTimeout(() => {
+            setNavigationHistory(["onboarding"]);
+            navigateWithAnimation("onboarding", "fade", false);
+          }, 1500);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [isNewSignup]);
+
+  // Register for push notifications when user is logged in
+  useEffect(() => {
+    if (!currentUser) {
+      return undefined;
+    }
+
+    let cleanupListener = null;
+    let isActive = true;
+
+    const registerAndListen = async () => {
+      try {
+        const result = await registerForPushNotifications();
+
+        if (result.success && result.token) {
+          const saveResult = await savePushToken(currentUser.uid, result.token);
+
+          if (!saveResult.success) {
+            console.error("Failed to persist push token:", saveResult.error);
+          }
+        } else if (!result.success) {
+          console.warn("Push notification registration failed:", result.error);
+        }
+      } catch (error) {
+        console.error("Unexpected push notification error:", error);
+      }
+
+      if (!isActive) {
+        return;
+      }
+
+      cleanupListener = setupNotificationListeners(
+        (notification) => {
+          // Handle notification received while app is open
+          console.log("📨 Notification received:", notification);
+        },
+        (response) => {
+          // Handle user tapping on notification
+          console.log("👆 Notification tapped:", response);
+          // You can navigate to a specific screen based on notification data
+        }
+      );
+    };
+
+    registerAndListen();
+
+    return () => {
+      isActive = false;
+      if (cleanupListener) {
+        cleanupListener();
+      }
+    };
+  }, [currentUser]);
+
+  // Auto-navigate from loading screen if no user
+  useEffect(() => {
+    if (screen === "loading" && !loading && !currentUser) {
       const timer = setTimeout(() => {
-        navigateWithAnimation("onboarding");
+        setNavigationHistory(["onboarding"]);
+        navigateWithAnimation("onboarding", "fade", false);
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [screen]);
+  }, [screen, loading, currentUser]);
 
-  // Animated navigation function
-  const navigateWithAnimation = (targetScreen, animationType = "fade") => {
-    setPreviousScreen(screen);
-
+  // Animated navigation function - UPDATED TO TRACK HISTORY
+  const navigateWithAnimation = (targetScreen, animationType = "fade", addToHistory = true) => {
     if (animationType === "modal") {
       // Slide from bottom for modal-like screens
       slideAnim.setValue(1000);
       setScreen(targetScreen);
+      if (addToHistory) {
+        setNavigationHistory([...navigationHistory, targetScreen]);
+      }
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
@@ -63,6 +182,9 @@ function MainApp() {
         useNativeDriver: true,
       }).start(() => {
         setScreen(targetScreen);
+        if (addToHistory) {
+          setNavigationHistory([...navigationHistory, targetScreen]);
+        }
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 200,
@@ -72,10 +194,124 @@ function MainApp() {
     }
   };
 
-  const goNext = () => {
-    if (screen === "onboarding") navigateWithAnimation("signup");
-    else if (screen === "signup") navigateWithAnimation("quiz");
-    else if (screen === "quiz") navigateWithAnimation("home");
+  // UPDATED: goBack now uses navigation history
+  const goBack = () => {
+    if (navigationHistory.length > 1) {
+      const newHistory = [...navigationHistory];
+      newHistory.pop(); // Remove current screen
+      const previousScreen = newHistory[newHistory.length - 1];
+      
+      setNavigationHistory(newHistory);
+      navigateWithAnimation(previousScreen, "fade", false);
+    } else {
+      // Fallback to home if no history
+      setNavigationHistory(["home"]);
+      navigateWithAnimation("home", "fade", false);
+    }
+  };
+
+  const handleGetStarted = () => {
+    navigateWithAnimation("signup1");
+  };
+
+  const handleSignInFromOnboarding = () => {
+    navigateWithAnimation("signin");
+  };
+
+  const handleSignupStep1Next = (data) => {
+    setSignupData({ ...signupData, ...data });
+    navigateWithAnimation("signup2");
+  };
+
+  const handleSignupStep2Next = (data) => {
+    setSignupData({ ...signupData, ...data });
+    navigateWithAnimation("signup3");
+  };
+
+  const handleSignupStep3Next = async (data) => {
+    const fullSignupData = { ...signupData, ...data };
+    setSignupData(fullSignupData);
+    setIsNewSignup(true);
+
+    const result = await signUp(fullSignupData.email, fullSignupData.password);
+
+    if (result.success) {
+      await saveUserProfile(result.user.uid, {
+        name: fullSignupData.name,
+        email: fullSignupData.email,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Navigate to quiz - clear history
+      setNavigationHistory(["quiz"]);
+      navigateWithAnimation("quiz", "fade", false);
+    } else {
+      Alert.alert("Signup Error", result.error);
+      setIsNewSignup(false);
+    }
+  };
+
+  const handleQuizComplete = async (quizData) => {
+    if (currentUser) {
+      await saveQuizData(currentUser.uid, quizData);
+    }
+    setIsNewSignup(false);
+    // Clear history and go to home
+    setNavigationHistory(["home"]);
+    navigateWithAnimation("home", "fade", false);
+  };
+
+  const handleSignIn = async (email, password) => {
+    const result = await signIn(email, password);
+
+    if (result.success) {
+      // Clear history on sign in
+      setNavigationHistory(["home"]);
+      navigateWithAnimation("home", "fade", false);
+    } else {
+      Alert.alert("Sign In Error", result.error);
+    }
+  };
+
+  const handleQuizStep1Next = (data) => {
+    setQuizData({ ...quizData, ...data });
+    navigateWithAnimation("quiz2");
+  };
+
+  const handleQuizStep2Next = (data) => {
+    setQuizData({ ...quizData, ...data });
+    navigateWithAnimation("quiz3");
+  };
+
+  const handleQuizStep3Next = (data) => {
+    setQuizData({ ...quizData, ...data });
+    navigateWithAnimation("quiz4");
+  };
+
+  const handleQuizStep4Next = (data) => {
+    setQuizData({ ...quizData, ...data });
+    navigateWithAnimation("quiz5");
+  };
+
+  const handleQuizStep5Next = async (data) => {
+    const fullQuizData = { ...quizData, ...data };
+    setQuizData(fullQuizData);
+
+    // Save quiz data to Firestore
+    if (currentUser) {
+      const result = await saveQuizData(currentUser.uid, fullQuizData);
+
+      if (result.success) {
+        console.log("Quiz data saved successfully");
+      } else {
+        console.error("Error saving quiz data:", result.error);
+      }
+    }
+
+    // Reset new signup flag
+    setIsNewSignup(false);
+
+    navigateWithAnimation("home");
   };
 
   const navigateToNote = () => {
@@ -83,7 +319,7 @@ function MainApp() {
   };
 
   const navigateToChat = () => {
-    navigateWithAnimation("chat", "modal");
+    setActiveTab("chat");
   };
 
   const navigateToProfile = () => {
@@ -95,23 +331,67 @@ function MainApp() {
   };
 
   const navigateToHome = () => {
-    navigateWithAnimation("home");
+    // Clear history when going to home
+    setNavigationHistory(["home"]);
+    navigateWithAnimation("home", "fade", false);
   };
 
-  const navigateToSuccess = (noteText) => {
-    // TODO: Save noteText to storage or backend here
-    console.log("Note saved:", noteText);
+  const navigateToSuccess = async (noteText, isDiaryEntry = false, messages = []) => {
+    // Save entry to Firestore
+    if (currentUser) {
+      if (isDiaryEntry) {
+        console.log("🔵 Processing diary entry with AI extraction...");
+        console.log("🔵 User ID:", currentUser.uid);
+        console.log("🔵 Message count:", messages.length);
+        console.log("🔵 Content length:", noteText.length);
+        console.log("🔵 Entry type:", messages.length > 0 ? "Chat conversation" : "Text note");
+
+        // Process diary entry with AI extraction
+        // Works for both chat conversations and text notes
+        const result = await processDiaryEntry(
+          currentUser.uid,
+          noteText,
+          messages
+        );
+
+        console.log("🔵 Result:", result);
+
+        if (result.success) {
+          console.log("✅ Diary entry saved successfully:", result.entryId);
+          console.log("✅ Extracted health data:", result.extractedData);
+
+          const symptomsCount = result.extractedData?.symptoms?.length || 0;
+          const moodScore = result.extractedData?.moods?.score || 5;
+
+          Alert.alert(
+            "Success! 🎉",
+            `Entry saved with:\n• ${symptomsCount} symptom(s) detected\n• Mood: ${moodScore}/10\n• Type: ${messages.length > 0 ? 'Chat' : 'Note'}`
+          );
+        } else {
+          console.error("❌ Error saving diary entry:", result.error);
+          Alert.alert("Error", `Failed to save diary entry: ${result.error}`);
+        }
+      } else {
+        // Legacy: Save as regular note (backward compatibility)
+        console.log("🟡 Saving as regular note (legacy mode)");
+        const result = await createNote(currentUser.uid, {
+          content: noteText,
+          mood: "neutral",
+        });
+
+        if (result.success) {
+          console.log("Note saved successfully:", result.noteId);
+        } else {
+          console.error("Error saving note:", result.error);
+        }
+      }
+    } else {
+      console.error("❌ No current user found!");
+      Alert.alert("Error", "You must be logged in to save entries.");
+    }
+
     navigateWithAnimation("success");
   };
-
-  // Placeholder for screens not implemented yet
-  const Placeholder = ({ title }) => (
-    <View style={[styles.placeholder, { backgroundColor: theme.background }]}>
-      <Text style={[styles.placeholderText, { color: theme.text }]}>
-        {title}
-      </Text>
-    </View>
-  );
 
   // Loading screen
   if (screen === "loading") {
@@ -126,22 +406,47 @@ function MainApp() {
     );
   }
 
-  // Home screen (Dashboard)
+  // Home screen (Dashboard) with Tabs
+  // KEEPING YOUR ORIGINAL - NO onLogout PROP
   if (screen === "home") {
     return (
-      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
+      <View
+        style={[
+          styles.screenWrapper,
+          { backgroundColor: theme.cardBackground },
+        ]}
+      >
         <Animated.View
           style={[styles.animatedContainer, { opacity: fadeAnim }]}
         >
           <SafeAreaView
+            edges={["top", "left", "right"]}
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <HistoryScreen
-              onCreateNote={navigateToNote}
-              onViewSummary={navigateToSummary}
-              onStartChat={navigateToChat}
-              onEditProfile={navigateToProfile}
-            />
+            {activeTab === "home" ? (
+              <HistoryScreen
+                onCreateNote={navigateToNote}
+                onViewSummary={navigateToSummary}
+                onStartChat={navigateToChat}
+                onEditProfile={navigateToProfile}
+                currentUser={currentUser}
+              />
+            ) : (
+              <ChatScreen
+                onBack={() => setActiveTab("home")}
+                onFinish={(conversationText, messages) =>
+                  navigateToSuccess(conversationText, true, messages)
+                }
+              />
+            )}
+
+            {/* 👇 Wrap tab bar in its own SafeAreaView so bottom area matches */}
+            <SafeAreaView
+              edges={["bottom"]}
+              style={{ backgroundColor: theme.cardBackground }}
+            >
+              <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+            </SafeAreaView>
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -158,30 +463,13 @@ function MainApp() {
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <NoteScreen onBack={navigateToHome} onFinish={navigateToSuccess} />
+            <NoteScreen
+              onBack={goBack}
+              onFinish={(noteText) => navigateToSuccess(noteText, true, [])}
+            />
           </SafeAreaView>
         </Animated.View>
       </View>
-    );
-  }
-
-  // Chat screen (modal slide from bottom)
-  if (screen === "chat") {
-    return (
-      <Animated.View
-        style={[
-          styles.animatedContainer,
-          {
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        <SafeAreaView
-          style={[styles.safeArea, { backgroundColor: theme.background }]}
-        >
-          <ChatScreen onBack={navigateToHome} onFinish={navigateToSuccess} />
-        </SafeAreaView>
-      </Animated.View>
     );
   }
 
@@ -195,7 +483,7 @@ function MainApp() {
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <ProfileScreen onBack={navigateToHome} />
+            <ProfileScreen onBack={goBack} currentUser={currentUser} />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -212,7 +500,12 @@ function MainApp() {
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <SuccessScreen onComplete={navigateToHome} />
+            <SuccessScreen 
+              onComplete={() => {
+                setActiveTab("home"); // Reset to notes tab
+                navigateToHome();
+              }} 
+            />
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -229,14 +522,138 @@ function MainApp() {
           <SafeAreaView
             style={[styles.safeArea, { backgroundColor: theme.background }]}
           >
-            <SummaryScreen onBack={navigateToHome} />
+            <SummaryScreen onBack={goBack} />
           </SafeAreaView>
         </Animated.View>
       </View>
     );
   }
 
-  // Stack navigation screens
+  // Onboarding screen
+  if (screen === "onboarding") {
+    return (
+      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
+          <SafeAreaView
+            style={[styles.safeArea, { backgroundColor: theme.background }]}
+          >
+            <OnboardingScreen
+              onGetStarted={handleGetStarted}
+              onSignIn={handleSignInFromOnboarding}
+            />
+          </SafeAreaView>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  // Sign In screen
+  if (screen === "signin") {
+    return (
+      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
+          <SafeAreaView
+            style={[styles.safeArea, { backgroundColor: theme.background }]}
+          >
+            <SignInScreen
+              onBack={goBack}
+              onSignIn={(email, password) => handleSignIn(email, password)}
+            />
+          </SafeAreaView>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  // Signup Step 1
+  if (screen === "signup1") {
+    return (
+      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
+          <SafeAreaView
+            style={[styles.safeArea, { backgroundColor: theme.background }]}
+          >
+            <SignupScreen1 onBack={goBack} onNext={handleSignupStep1Next} />
+          </SafeAreaView>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  // Signup Step 2
+  if (screen === "signup2") {
+    return (
+      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
+          <SafeAreaView
+            style={[styles.safeArea, { backgroundColor: theme.background }]}
+          >
+            <SignupScreen2 onBack={goBack} onNext={handleSignupStep2Next} />
+          </SafeAreaView>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  // Signup Step 3
+  if (screen === "signup3") {
+    return (
+      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
+        <Animated.View
+          style={[styles.animatedContainer, { opacity: fadeAnim }]}
+        >
+          <SafeAreaView
+            style={[styles.safeArea, { backgroundColor: theme.background }]}
+          >
+            <SignupScreen3 onBack={goBack} onNext={handleSignupStep3Next} />
+          </SafeAreaView>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  // Quiz screen - UPDATED WITH CONFIRMATION DIALOG
+  if (screen === "quiz") {
+    return (
+      <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
+        <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
+          <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+            <QuizScreen 
+              onNext={handleQuizComplete} 
+              onBack={() => {
+                Alert.alert(
+                  "Cancel Signup?",
+                  "Going back will cancel your signup. Are you sure?",
+                  [
+                    { text: "Stay", style: "cancel" },
+                    { 
+                      text: "Cancel Signup", 
+                      style: "destructive",
+                      onPress: () => {
+                        setIsNewSignup(false);
+                        setNavigationHistory(["onboarding"]);
+                        navigateWithAnimation("onboarding", "fade", false);
+                      }
+                    }
+                  ]
+                );
+              }} 
+            />
+          </SafeAreaView>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  // Fallback for any other screens
   return (
     <View style={[styles.screenWrapper, { backgroundColor: "#FFFFFF" }]}>
       <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim }]}>
@@ -245,21 +662,7 @@ function MainApp() {
         >
           <View
             style={[styles.container, { backgroundColor: theme.background }]}
-          >
-            {screen === "signup" ? (
-              <SignupScreen />
-            ) : (
-              <Placeholder
-                title={screen === "onboarding" ? "Onboarding" : "Quiz"}
-              />
-            )}
-            <TouchableOpacity
-              style={[styles.nextBtn, { backgroundColor: theme.primary }]}
-              onPress={goNext}
-            >
-              <Text style={styles.nextText}>Next →</Text>
-            </TouchableOpacity>
-          </View>
+          />
         </SafeAreaView>
       </Animated.View>
     </View>
@@ -286,15 +689,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-  },
-  placeholder: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  placeholderText: {
-    fontSize: 32,
-    fontWeight: "600",
   },
   nextBtn: {
     padding: 14,
