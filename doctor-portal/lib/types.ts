@@ -60,3 +60,5 @@ export interface Doctor {
   name: string;
   patients: string[];
 }
+
+export type JournalEntry = (Note | DiaryEntry) & { entryType: "note" | "diary" };

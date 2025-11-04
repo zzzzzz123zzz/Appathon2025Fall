@@ -1497,7 +1497,7 @@ export default function Dashboard() {
               {/* Push Token Debug Info */}
               {selectedPatient && (
                 <div className={`mb-4 p-4 rounded-xl border ${
-                  (selectedPatient.pushTokens?.length > 0 || selectedPatient.pushToken)
+                  ((selectedPatient.pushTokens && selectedPatient.pushTokens.length > 0) || selectedPatient.pushToken)
                     ? 'bg-green-50 border-green-200'
                     : 'bg-yellow-50 border-yellow-200'
                 }`}>
@@ -1505,11 +1505,11 @@ export default function Dashboard() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`text-sm font-semibold ${
-                          (selectedPatient.pushTokens?.length > 0 || selectedPatient.pushToken) ? 'text-green-800' : 'text-yellow-800'
+                          ((selectedPatient.pushTokens && selectedPatient.pushTokens.length > 0) || selectedPatient.pushToken) ? 'text-green-800' : 'text-yellow-800'
                         }`}>
-                          Push Notifications: {(selectedPatient.pushTokens?.length > 0 || selectedPatient.pushToken) ? '✅ Enabled' : '❌ Not Enabled'}
+                          Push Notifications: {((selectedPatient.pushTokens && selectedPatient.pushTokens.length > 0) || selectedPatient.pushToken) ? '✅ Enabled' : '❌ Not Enabled'}
                         </span>
-                        {selectedPatient.pushTokens?.length > 0 && (
+                        {selectedPatient.pushTokens && selectedPatient.pushTokens.length > 0 && (
                           <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                             {selectedPatient.pushTokens.length} device{selectedPatient.pushTokens.length > 1 ? 's' : ''}
                           </span>
@@ -1547,7 +1547,7 @@ export default function Dashboard() {
                         </p>
                       )}
                     </div>
-                    {(selectedPatient.pushTokens?.length > 0 || selectedPatient.pushToken) && (
+                    {((selectedPatient.pushTokens && selectedPatient.pushTokens.length > 0) || selectedPatient.pushToken) && (
                       <button
                         onClick={() => clearPushToken(selectedPatient.id, selectedPatient.name)}
                         className="ml-3 px-3 py-1.5 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors duration-200 flex items-center gap-1 flex-shrink-0"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -12,7 +12,7 @@ type WeekData = {
   startDate: Date;
 };
 
-export default function WeekReviewPage() {
+function WeekReviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const patientId = searchParams.get("patientId");
@@ -361,18 +361,18 @@ export default function WeekReviewPage() {
     }
 
     if (analytics.topSymptoms.length > 2) {
-      html += `<div style="margin-bottom:8px"><strong>[CLINICAL] Multiple Symptoms Documented</strong><div>Top symptoms: ${analytics.topSymptoms.slice(0,3).map(([s])=>s).join(', ')}</div></div>`;
+      html += `<div style="margin-bottom:8px"><strong>[CLINICAL] Multiple Symptoms Documented</strong><div>Top symptoms: ${analytics.topSymptoms.slice(0,3).map(([s]: [string, number])=>s).join(', ')}</div></div>`;
     }
 
     if (analytics.topMedications.length > 0) {
       html += `<div style="margin-bottom:8px"><strong>[MEDICATION] Medication References Noted</strong><div>Verify current medication list, assess adherence, and screen for adverse effects.</div></div>`;
     }
 
-    if (weekData.entries.length < 2) {
+    if (weekData && weekData.entries.length < 2) {
       html += `<div style="margin-bottom:8px"><strong>[ENGAGEMENT] Limited Patient Engagement</strong><div>Discuss barriers to consistent journaling and consider simplified monitoring.</div></div>`;
     }
 
-    if (parseFloat(analytics.avgMood) >= 7 && weekData.entries.length >= 5) {
+    if (weekData && parseFloat(analytics.avgMood) >= 7 && weekData.entries.length >= 5) {
       html += `<div style="margin-bottom:8px"><strong>[POSITIVE] Clinical Trajectory</strong><div>Continue current treatment and monitoring; reinforce engagement.</div></div>`;
     }
 
@@ -1211,5 +1211,20 @@ export default function WeekReviewPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function WeekReviewPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#c1a57d] mx-auto"></div>
+          <p className="mt-4 text-gray-500">Loading week review...</p>
+        </div>
+      </div>
+    }>
+      <WeekReviewContent />
+    </Suspense>
   );
 }
