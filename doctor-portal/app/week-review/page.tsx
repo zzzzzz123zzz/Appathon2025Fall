@@ -288,7 +288,7 @@ export default function WeekReviewPage() {
         ` : ''}
 
         <section style="margin-top:18px;">
-          <h3 style="color:${headerColor};">Clinical Recommendations</h3>
+          <h3 style="color:${headerColor};">AI Recommendations</h3>
           <div style="font-size:13px; color:#333; line-height:1.5; margin-top:8px">
             ${generateClinicalRecommendationsHTML(analytics)}
           </div>
